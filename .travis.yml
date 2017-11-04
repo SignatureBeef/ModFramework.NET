@@ -1,0 +1,9 @@
+language: csharp
+mono:
+  - beta
+solution: Mod.Framework.sln
+install:
+  - mozroots --import --sync
+  - nuget restore Mod.Framework.sln
+script:
+  - msbuild Mod.Framework.sln /verbosity:minimal 
