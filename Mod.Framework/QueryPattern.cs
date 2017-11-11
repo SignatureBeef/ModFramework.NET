@@ -13,6 +13,7 @@ namespace Mod.Framework
 		public string AssemblyName { get; set; }
 		public string FullName { get; set; }
 		public bool StartsWith { get; set; }
+		public bool EndsWith { get; set; }
 
 		public IEnumerable<string> Parameters => _parameters;
 
@@ -33,6 +34,10 @@ namespace Mod.Framework
 			if (this.StartsWith)
 			{
 				return meta.FullName.StartsWith(this.FullName);
+			}
+			else if(this.EndsWith)
+			{
+				return meta.FullName.EndsWith(this.FullName);
 			}
 			else
 			{
@@ -77,7 +82,8 @@ namespace Mod.Framework
 							state = State.ReadingFullName;
 							continue;
 						case '*':
-							pattern.StartsWith = true;
+							pattern.StartsWith = x > 0;
+							pattern.EndsWith = x == 0;
 							continue;
 						case '(':
 							state = State.ReadingParameters;

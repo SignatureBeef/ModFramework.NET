@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
+using Mono.Collections.Generic;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,101 +9,133 @@ namespace Mod.Framework.Extensions
 {
 	public static class CecilExtensions
 	{
-		#region Assembly
-		/// <summary>
-		/// Gets a type from the assembly using <see cref="TypeReference.FullName"/>
-		/// </summary>
-		/// <param name="assemblyDefinition"></param>
-		/// <param name="name"></param>
-		/// <returns></returns>
-		public static TypeDefinition Type(this AssemblyDefinition assemblyDefinition, string name)
+		#region Assembly Extensions
+		public static IEnumerable<TypeReference> SelectAllTypes(this AssemblyDefinition assembly)
 		{
-			return assemblyDefinition.MainModule.Types.Single(x => x.FullName == name);
+			return assembly.Modules.SelectMany(am =>
+				am.Types.SelectMany(t => t.SelectAllTypes())
+			);
 		}
 
-		/// <summary>
-		/// Enumerates all instructions in all methods across each type of the assembly
-		/// </summary>
-		public static void ForEachInstruction(this AssemblyDefinition assembly, Action<MethodDefinition, Mono.Cecil.Cil.Instruction> callback)
+		public static IEnumerable<MethodDefinition> SelectAllMethods(this AssemblyDefinition assembly)
 		{
-			assembly.ForEachType(type =>
+			return assembly.SelectAllTypes().SelectMany(t => t.SelectAllMethods());
+		}
+
+		public static IEnumerable<PropertyDefinition> SelectAllProperties(this AssemblyDefinition assembly)
+		{
+			return assembly.SelectAllTypes().SelectMany(t => t.SelectAllProperties());
+		}
+
+		public static IEnumerable<(MethodDefinition method, Instruction instruction)> SelectAllInstructions(this AssemblyDefinition assembly)
+		{
+			return assembly.Modules.SelectMany(m => m.SelectAllInstructions());
+		}
+
+		public static IEnumerable<(MethodDefinition method, Collection<Instruction> instructions)> SelectInstructions(this AssemblyDefinition assembly)
+		{
+			return assembly.Modules.SelectMany(m => m.SelectInstructions());
+		}
+
+		#endregion
+
+		#region Module Extensions
+		public static IEnumerable<TypeReference> SelectAllTypes(this ModuleDefinition module)
+		{
+			return module.Types.SelectMany(t => t.SelectAllTypes());
+		}
+
+		public static IEnumerable<MethodDefinition> SelectAllMethods(this ModuleDefinition module)
+		{
+			return module.SelectAllTypes().SelectMany(t => t.SelectAllMethods());
+		}
+
+		public static IEnumerable<PropertyDefinition> SelectAllProperties(this ModuleDefinition module)
+		{
+			return module.SelectAllTypes().SelectMany(t => t.SelectAllProperties());
+		}
+
+		public static IEnumerable<(MethodDefinition method, Instruction instruction)> SelectAllInstructions(this ModuleDefinition module)
+		{
+			return module.SelectAllTypes().AsDefinitions().SelectMany(t => t.SelectAllInstructions());
+		}
+
+		public static IEnumerable<(MethodDefinition method, Collection<Instruction> instructions)> SelectInstructions(this ModuleDefinition module)
+		{
+			return module.SelectAllTypes().AsDefinitions().SelectMany(t => t.SelectInstructions());
+		}
+		#endregion
+
+
+		#region Type Extensions
+
+		public static IEnumerable<TypeDefinition> AsDefinitions(this IEnumerable<TypeReference> types)
+		{
+			foreach (var type in types)
 			{
-				if (type.HasMethods)
+				var resolved = type.Resolve();
+				yield return resolved; //(definition: resolved, reference: type);
+			}
+		}
+
+		public static IEnumerable<TypeReference> SelectAllTypes(this TypeReference type)
+		{
+			yield return type;
+
+			var definition = type.Resolve();
+
+			if (definition != null)
+			{
+				foreach (var nestedType in definition.NestedTypes)
+					yield return nestedType;
+
+				foreach (var intf in definition.Interfaces)
 				{
-					foreach (var method in type.Methods)
+					var generic = intf as GenericInstanceType;
+
+					if (generic != null)
 					{
-						if (method.HasBody)
+						foreach (var argumentType in generic.GenericArguments)
 						{
-							foreach (var ins in method.Body.Instructions.ToArray())
-								callback.Invoke(method, ins);
+							yield return argumentType;
 						}
 					}
 				}
-			});
+			}
 		}
 
-		/// <summary>
-		/// Enumerates over each type in the assembly, including nested types
-		/// </summary>
-		public static void ForEachType(this AssemblyDefinition assembly, Action<TypeDefinition> callback)
+		public static IEnumerable<PropertyDefinition> SelectAllProperties(this TypeReference type)
 		{
-			foreach (var module in assembly.Modules)
-			{
-				foreach (var type in module.Types)
-				{
-					callback(type);
+			return type.SelectAllTypes()
+				.AsDefinitions()
+				.Where(t => t?.HasProperties == true)
+				.SelectMany(t => t.Properties);
+		}
 
-					//Enumerate nested types
-					type.ForEachNestedType(callback);
-				}
-			}
+		public static IEnumerable<MethodDefinition> SelectAllMethods(this TypeReference type)
+		{
+			return type.SelectAllTypes()
+				.AsDefinitions()
+				.Where(t => t?.HasMethods == true)
+				.SelectMany(t => t.Methods);
+		}
+
+		public static IEnumerable<(MethodDefinition method, Instruction instruction)> SelectAllInstructions(this TypeDefinition type)
+		{
+			return type.SelectAllMethods()
+				.Where(m => m.Body?.Instructions != null)
+				.SelectMany(m => m.Body.Instructions.Select(i => (method: m, instruction: i)));
+		}
+
+		public static IEnumerable<(MethodDefinition method, Collection<Instruction> instructions)> SelectInstructions(this TypeDefinition type)
+		{
+			return type.SelectAllMethods()
+				.Select(m => (method: m, instructions: m.Body?.Instructions))
+				.Where(s => s.instructions != null);
 		}
 		#endregion
 
-		#region Module
-		/// <summary>
-		/// Enumerates all methods in the current module
-		/// </summary>
-		public static void ForEachMethod(this ModuleDefinition module, Action<MethodDefinition> callback)
-		{
-			module.ForEachType(type =>
-			{
-				foreach (var mth in type.Methods)
-				{
-					callback.Invoke(mth);
-				}
-			});
-		}
 
-		/// <summary>
-		/// Enumerates all instructions in all methods across each type of the assembly
-		/// </summary>
-		public static void ForEachInstruction(this ModuleDefinition module, Action<MethodDefinition, Mono.Cecil.Cil.Instruction> callback)
-		{
-			module.ForEachMethod(method =>
-			{
-				if (method.HasBody)
-				{
-					foreach (var ins in method.Body.Instructions.ToArray())
-						callback.Invoke(method, ins);
-				}
-			});
-		}
-
-		/// <summary>
-		/// Enumerates over each type in the assembly, including nested types
-		/// </summary>
-		public static void ForEachType(this ModuleDefinition module, Action<TypeDefinition> callback)
-		{
-			foreach (var type in module.Types)
-			{
-				callback(type);
-
-				//Enumerate nested types
-				type.ForEachNestedType(callback);
-			}
-		}
-		#endregion
 
 		#region Method
 		/// <summary>
@@ -116,38 +149,9 @@ namespace Mod.Framework.Extensions
 			return method.Name.TrimStart('.');
 		}
 
-		/// <summary>
-		/// Replaces all occurrences of the current method in the assembly with the provided method
-		/// </summary>
-		/// <param name="method"></param>
-		/// <param name="replacement"></param>
-		public static void ReplaceWith(this MethodDefinition method, MethodReference replacement)
+		public static string GetBackingName(this FieldDefinition field)
 		{
-			//Enumerates over each type in the assembly, including nested types
-			method.Module.ForEachInstruction((mth, ins) =>
-			{
-				//Compare each instruction operand value as if it were a method reference. Check to 
-				//see if they match the current method definition. If it matches, it can be swapped.
-				if (ins.Operand == method)
-					ins.Operand = replacement;
-
-				var generic_method = ins.Operand as GenericInstanceMethod;
-				if (generic_method != null)
-				{
-					if (generic_method.ElementMethod == method)
-					{
-						var replacement_instance = new GenericInstanceMethod(replacement);
-
-						foreach (var item in generic_method.GenericArguments)
-							replacement_instance.GenericArguments.Add(item);
-
-						foreach (var item in generic_method.GenericParameters)
-							replacement_instance.GenericParameters.Add(item);
-
-						ins.Operand = replacement_instance;
-					}
-				}
-			});
+			return $"<{field.Name}>k__BackingField";
 		}
 
 		/// <summary>
@@ -232,41 +236,7 @@ namespace Mod.Framework.Extensions
 		#endregion
 
 		#region Type
-		/// <summary>
-		/// Gets a field from the given type
-		/// </summary>
-		/// <param name="typeDefinition">The type to search</param>
-		/// <param name="name">Name of the field</param>
-		public static FieldDefinition Field(this TypeDefinition typeDefinition, string name)
-		{
-			return typeDefinition.Fields.Single(x => x.Name == name);
-		}
 
-		/// <summary>
-		/// Gets a method from the given type
-		/// </summary>
-		/// <param name="type">The type to search</param>
-		/// <param name="name">Name of the method</param>
-		public static MethodDefinition Method(this TypeDefinition type, string name)
-		{
-			return type.Methods.Single(x => x.Name == name);
-		}
-
-		/// <summary>
-		/// Enumerates over each method in the given type
-		/// </summary>
-		/// <param name="type">The type that contains the methods</param>
-		/// <param name="callback">The callback to process methods with</param>
-		public static void ForEachMethod(this TypeDefinition type, Action<MethodDefinition> callback)
-		{
-			if (type.HasMethods)
-			{
-				foreach (var method in type.Methods)
-				{
-					callback.Invoke(method);
-				}
-			}
-		}
 
 		/// <summary>
 		/// Ensures all members of the type are publicly accessible
@@ -364,16 +334,16 @@ namespace Mod.Framework.Extensions
 				method.IsNewSlot = true;
 			}
 
-			type.Module.ForEachInstruction((method, instruction) =>
+			foreach (var ins_set in type.Module.SelectAllInstructions())
 			{
-				if (methods.Any(x => x == instruction.Operand))
+				if (methods.Any(x => x == ins_set.instruction.Operand))
 				{
-					if (instruction.OpCode != OpCodes.Callvirt)
+					if (ins_set.instruction.OpCode != OpCodes.Callvirt)
 					{
-						instruction.OpCode = OpCodes.Callvirt;
+						ins_set.instruction.OpCode = OpCodes.Callvirt;
 					}
 				}
-			});
+			};
 		}
 
 		/// <summary>
@@ -432,152 +402,6 @@ namespace Mod.Framework.Extensions
 				processor.InsertAfter(target, instruction);
 			}
 		}
-
-		/// <summary>
-		/// Parses anonymously typed instructions into Instruction instances that are compatible with Mono.Cecil
-		/// </summary>
-		/// <param name="anonymous">Parameter list of instructions, or array of instructions</param>
-		/// <returns>The parsed instructions</returns>
-		public static IEnumerable<Instruction> ParseAnonymousInstruction(params object[] anonymous)
-		{
-			foreach (var anon in anonymous)
-			{
-				var expandable = anon as IEnumerable<object>;
-				var resolver = anon as Func<IEnumerable<object>>;
-
-				if (resolver != null)
-				{
-					expandable = resolver();
-				}
-
-				if (expandable != null)
-				{
-					foreach (var item in expandable)
-					{
-						foreach (var sub in ParseAnonymousInstruction(item))
-						{
-							yield return sub;
-						}
-					}
-				}
-				else yield return InternalAnonymousToInstruction(anon);
-			}
-		}
-
-		/// <summary>
-		/// Adds a list of anonymously typed instructions into the current list
-		/// </summary>
-		/// <param name="list">The list to add parsed instructions to</param>
-		/// <param name="anonymous">The list of anonymous types</param>
-		public static void Add(this List<Instruction> list, params object[] anonymous)
-		{
-			list.AddRange(ParseAnonymousInstruction(anonymous));
-		}
-
-		/// <summary>
-		/// Converts a anonymous type into an Instruction
-		/// </summary>
-		/// <param name="anonymous">The anonymous type to be parsed</param>
-		/// <returns></returns>
-		private static Instruction InternalAnonymousToInstruction(object anonymous)
-		{
-			var reference = anonymous as InstructionReference;
-			if (reference != null)
-			{
-				return reference.Reference;
-			}
-
-			var annonType = anonymous.GetType();
-			var properties = annonType.GetProperties();
-
-			//An instruction consists of only 1 opcode, or 1 opcode and 1 operation
-			if (properties.Length == 0 || properties.Length > 2)
-				throw new NotSupportedException("Anonymous instruction expected 1 or 2 properties");
-
-			//Determine the property that contains the OpCode property
-			var propOpcode = properties.SingleOrDefault(x => x.PropertyType == typeof(OpCode));
-			if (propOpcode == null)
-				throw new NotSupportedException("Anonymous instruction expected 1 opcode property");
-
-			//Get the opcode value
-			var opcode = (OpCode)propOpcode.GetMethod.Invoke(anonymous, null);
-
-			//Now determine if we need an operand or not
-			Instruction ins = null;
-			if (properties.Length == 2)
-			{
-				//We know we already have the opcode determined, so the second property
-				//must be the operand.
-				var propOperand = properties.Where(x => x != propOpcode).Single();
-
-				var operand = propOperand.GetMethod.Invoke(anonymous, null);
-				var operandType = propOperand.PropertyType;
-				reference = operand as InstructionReference;
-				if (reference != null)
-				{
-					operand = reference.Reference;
-					operandType = reference.Reference.GetType();
-				}
-
-				//Now find the Instruction.Create method that takes the same type that is 
-				//specified by the operands type.
-				//E.g. Instruction.Create(OpCode, FieldReference)
-				var instructionMethod = typeof(Instruction).GetMethods()
-					.Where(x => x.Name == "Create")
-					.Select(x => new { Method = x, Parameters = x.GetParameters() })
-					//.Where(x => x.Parameters.Length == 2 && x.Parameters[1].ParameterType == propOperand.PropertyType)
-					.Where(x => x.Parameters.Length == 2 && x.Parameters[1].ParameterType.IsAssignableFrom(operandType))
-					.SingleOrDefault();
-
-				if (instructionMethod == null)
-					throw new NotSupportedException($"Instruction.Create does not support type {operandType.FullName}");
-
-				//Get the operand value and pass it to the Instruction.Create method to create
-				//the instruction.
-				ins = (Instruction)instructionMethod.Method.Invoke(anonymous, new[] { opcode, operand });
-			}
-			else
-			{
-				//No operand required
-				ins = Instruction.Create(opcode);
-			}
-
-			return ins;
-		}
-
-		/// <summary>
-		/// Inserts a list of anonymous instructions after the target instruction
-		/// </summary>
-		public static List<Instruction> InsertAfter(this Mono.Cecil.Cil.ILProcessor processor, Instruction target, params object[] instructions)
-		{
-			var created = new List<Instruction>();
-			foreach (var anon in instructions.Reverse())
-			{
-				var ins = ParseAnonymousInstruction(anon);
-				processor.InsertAfter(target, ins);
-
-				created.AddRange(ins);
-			}
-
-			return created;
-		}
-
-		/// <summary>
-		/// Inserts a list of anonymous instructions before the target instruction
-		/// </summary>
-		public static List<Instruction> InsertBefore(this Mono.Cecil.Cil.ILProcessor processor, Instruction target, params object[] instructions)
-		{
-			var created = new List<Instruction>();
-			foreach (var anon in instructions)
-			{
-				var ins = ParseAnonymousInstruction(anon);
-				processor.InsertBefore(target, ins);
-
-				created.AddRange(ins);
-			}
-
-			return created;
-		}
 		#endregion
 
 		#region Instructions
@@ -613,97 +437,6 @@ namespace Mod.Framework.Extensions
 			}
 
 			return null;
-		}
-
-		/// <summary>
-		/// Replaces instruction references (ie if, try) to a new instruction target.
-		/// This is useful if you are injecting new code before a section of code that is already
-		/// the receiver of a try/if block.
-		/// </summary>
-		/// <param name="current">The original instruction</param>
-		/// <param name="newTarget">The new instruction that will receive the transfer</param>
-		/// <param name="originalMethod">The original method that is used to search for transfers</param>
-		public static void ReplaceTransfer(this Instruction current, Instruction newTarget, MethodDefinition originalMethod)
-		{
-			//If a method has a body then check the instruction targets & exceptions
-			if (originalMethod.HasBody)
-			{
-				//Replaces instruction references from the old instruction to the new instruction
-				foreach (var ins in originalMethod.Body.Instructions.Where(x => x.Operand == current))
-					ins.Operand = newTarget;
-
-				//If there are exception handlers, it's possible that they will also need to be switched over
-				if (originalMethod.Body.HasExceptionHandlers)
-				{
-					foreach (var handler in originalMethod.Body.ExceptionHandlers)
-					{
-						if (handler.FilterStart == current) handler.FilterStart = newTarget;
-						if (handler.HandlerEnd == current) handler.HandlerEnd = newTarget;
-						if (handler.HandlerStart == current) handler.HandlerStart = newTarget;
-						if (handler.TryEnd == current) handler.TryEnd = newTarget;
-						if (handler.TryStart == current) handler.TryStart = newTarget;
-					}
-				}
-
-				//Update the new target to take the old targets place
-				newTarget.Offset = current.Offset;
-				newTarget.SequencePoint = current.SequencePoint;
-				newTarget.Offset++; //TODO: spend some time to figure out why this is incrementing
-			}
-		}
-		#endregion
-
-		#region Field
-		/// <summary>
-		/// Replaces all occurrences of a field with a property call by simply swapping
-		/// the field instructions that load/set.
-		/// </summary>
-		/// <param name="field"></param>
-		/// <param name="property"></param>
-		public static void ReplaceWith(this FieldDefinition field, PropertyDefinition property)
-		{
-			//Enumerate over every instruction in the fields assembly
-			field.Module.ForEachInstruction((method, instruction) =>
-			{
-				//Check if the instruction is a field reference
-				//We only want to handle the field we want to replace
-				var reference = instruction.Operand as FieldReference;
-				if (reference != null && reference.FullName == field.FullName)
-				{
-					//If the instruction is being loaded, we need to replace it
-					//with the property's getter method
-					if (instruction.OpCode == OpCodes.Ldfld)
-					{
-						//A getter is required on the property
-						if (property.GetMethod == null)
-							throw new MissingMethodException("Property is missing getter");
-
-						//If the property has already been added into the assembly
-						//don't swap anything in it's getter
-						if (method.FullName == property.GetMethod.FullName)
-							return;
-
-						//Swap the instruction to call the propertys getter
-						instruction.OpCode = OpCodes.Callvirt;
-						instruction.Operand = field.Module.Import(property.GetMethod);
-					}
-					else if (instruction.OpCode == OpCodes.Stfld)
-					{
-						//A setter is required on the property
-						if (property.SetMethod == null)
-							throw new MissingMethodException("Property is missing setter");
-
-						//If the property has already been added into the assembly
-						//don't swap anything in it's setter
-						if (method.FullName == property.SetMethod.FullName)
-							return;
-
-						//Swap the instruction to call the propertys setter
-						instruction.OpCode = OpCodes.Callvirt;
-						instruction.Operand = field.Module.Import(property.SetMethod);
-					}
-				}
-			});
 		}
 		#endregion
 	}

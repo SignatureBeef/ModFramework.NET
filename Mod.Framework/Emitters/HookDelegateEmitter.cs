@@ -1,5 +1,6 @@
 ﻿using Mod.Framework.Extensions;
 using Mono.Cecil;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Mod.Framework.Emitters
@@ -9,20 +10,33 @@ namespace Mod.Framework.Emitters
 	/// </summary>
 	public class HookDelegateEmitter : IEmitter<TypeDefinition>
 	{
-		private string _prefix;
-		private MethodDefinition _method;
 		private HookOptions _flags;
+		private IEnumerable<ParameterDefinition> _parameters;
+		private TypeReference _returnType;
+		private string _name;
+		private ModuleDefinition _module;
 
 		public HookDelegateEmitter(string prefix, MethodDefinition method, HookOptions flags)
 		{
-			this._prefix = prefix;
-			this._method = method;
+			this._name = prefix + method.GetSafeName();
 			this._flags = flags;
+			this._parameters = method.Parameters;
+			this._module = method.Module;
+			this._returnType = method.ReturnType;
+		}
+
+		public HookDelegateEmitter(string name, IEnumerable<ParameterDefinition> parameters, TypeDefinition returnType, HookOptions flags, ModuleDefinition module)
+		{
+			this._name = name;
+			this._parameters = parameters;
+			this._flags = flags;
+			this._module = module;
+			this._returnType = returnType;
 		}
 
 		public TypeDefinition Emit()
 		{
-			var delegate_parameters = _method.Parameters
+			var delegate_parameters = _parameters
 				.Select(x => new ParameterDefinition(x.Name, x.Attributes, x.ParameterType))
 				.ToList();
 
@@ -36,26 +50,26 @@ namespace Mod.Framework.Emitters
 
 			if (
 				(_flags & HookOptions.AlterResult) != 0
-				&& _method.ReturnType != _method.DeclaringType.Module.TypeSystem.Void
+				&& this._returnType != _module.TypeSystem.Void
 			)
 			{
 				delegate_parameters.Add(new ParameterDefinition(
 					"result",
 					ParameterAttributes.None,
 					(_flags & HookOptions.ReferenceParameters) != 0 ?
-						new ByReferenceType(_method.ReturnType) : _method.ReturnType
+						new ByReferenceType(this._returnType) : this._returnType
 				));
 			}
 
 			TypeReference return_type = (_flags & HookOptions.Cancellable) != 0 ?
-				_method.DeclaringType.Module.TypeSystem.Boolean
-				: _method.DeclaringType.Module.TypeSystem.Void;
+				_module.TypeSystem.Boolean
+				: this._returnType;
 
 			var delegate_emitter = new DelegateEmitter(
-				_prefix + _method.GetSafeName(),
+				this._name,
 				return_type,
 				delegate_parameters,
-				_method.DeclaringType.Module
+				_module
 			);
 
 			return delegate_emitter.Emit();

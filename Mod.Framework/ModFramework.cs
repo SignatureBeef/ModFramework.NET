@@ -128,7 +128,8 @@ namespace Mod.Framework
 		{
 			this.Initialise();
 
-			foreach (RunnableModule module in _kernel.GetAll<RunnableModule>().OrderBy(x => x.Order))
+			var modules = _kernel.GetAll<RunnableModule>().OrderBy(x => x.Order);
+			foreach (RunnableModule module in modules)
 			{
 				module.Assemblies = module.AssemblyTargets.Count() == 0 ?
 					this.CecilAssemblies

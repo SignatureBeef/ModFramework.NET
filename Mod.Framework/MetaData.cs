@@ -9,5 +9,13 @@
 		public string AssemblyName { get; set; }
 		public string FullName { get; set; }
 		public object Instance { get; set; }
+
+		public override string ToString()
+		{
+			if (AssemblyName != null)
+				return $"[{AssemblyName}] {FullName}";
+
+			return $"{FullName}";
+		}
 	}
 }

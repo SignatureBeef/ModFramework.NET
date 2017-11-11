@@ -16,6 +16,9 @@ namespace Mod.Framework
 
 		public int Order => attribute.Order;
 
+		/// <summary>
+		/// Defines which Assembly Names the modification applies to.
+		/// </summary>
 		public IEnumerable<String> AssemblyTargets { get; set; }
 
 		public IEnumerable<AssemblyDefinition> Assemblies { get; set; }
@@ -36,9 +39,6 @@ namespace Mod.Framework
 				this.GetType(),
 				typeof(AssemblyTargetAttribute)
 			)).Select(x => x.AssemblyName);
-
-			if (AssemblyTargets == null || AssemblyTargets.Count() == 0)
-				throw new NotSupportedException($"At least one {nameof(AssemblyTargetAttribute)} declaration is required, please add at least one to your module.");
 		}
 
 		public virtual void Dispose() { }

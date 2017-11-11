@@ -56,6 +56,9 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.ValueTuple, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -65,6 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyExpander.cs" />
+    <Compile Include="Collections\DefaultCollection.cs" />
     <Compile Include="Emitters\InterfaceEmitter.cs" />
     <Compile Include="Emitters\CallEmitter.cs" />
     <Compile Include="Emitters\CSharpEmitter.cs" />
@@ -73,8 +77,11 @@
     <Compile Include="Emitters\HookEmitter.cs" />
     <Compile Include="Emitters\IEmitter.cs" />
     <Compile Include="Emitters\PropertyEmitter.cs" />
+    <Compile Include="Extensions\Anonymous.Extensions.cs" />
     <Compile Include="Extensions\Cecil.Extensions.cs" />
+    <Compile Include="Extensions\Cloning.Extensions.cs" />
     <Compile Include="Extensions\Replacement.Extensions.cs" />
+    <Compile Include="Extensions\Shorthand.Extensions.cs" />
     <Compile Include="HookOptions.cs" />
     <Compile Include="Extensions\Hooking.Extensions.cs" />
     <Compile Include="Glob.cs" />

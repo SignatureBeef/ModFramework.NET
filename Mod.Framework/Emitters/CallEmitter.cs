@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using Mod.Framework.Extensions;
+using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System.Collections.Generic;
 
@@ -26,7 +27,7 @@ namespace Mod.Framework.Emitters
 			// if the callback is an instance method then add in the instance (this)
 			if (!_method.IsStatic)
 			{
-				instructions.AddRange(Extensions.CecilExtensions.ParseAnonymousInstruction(
+				instructions.AddRange(AnonymousExtensions.ParseAnonymousInstruction(
 					new { OpCodes.Ldarg_0 }
 				));
 			}
@@ -35,18 +36,18 @@ namespace Mod.Framework.Emitters
 			{
 				var opcode = parameter.ParameterType.IsByReference ? OpCodes.Ldarga : OpCodes.Ldarg;
 
-				instructions.AddRange(Extensions.CecilExtensions.ParseAnonymousInstruction(
+				instructions.AddRange(AnonymousExtensions.ParseAnonymousInstruction(
 					new { opcode, parameter }
 				));
 			}
 
-			instructions.AddRange(Extensions.CecilExtensions.ParseAnonymousInstruction(
+			instructions.AddRange(AnonymousExtensions.ParseAnonymousInstruction(
 				new { OpCodes.Call, _method }
 			));
 
 			if (_method.ReturnType.FullName != "System.Void")
 			{
-				instructions.AddRange(Extensions.CecilExtensions.ParseAnonymousInstruction(
+				instructions.AddRange(AnonymousExtensions.ParseAnonymousInstruction(
 					new { OpCodes.Pop }
 				));
 			}

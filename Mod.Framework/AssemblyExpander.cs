@@ -1,4 +1,5 @@
 ﻿using Mono.Cecil;
+using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,17 +43,17 @@ namespace Mod.Framework
 		}
 
 		// TODO: Add IL patterns etc (plus a switch to turn off as this is very intensive)
-		//public void Expand(MethodDefinition method, Instruction instruction, bool add = true)
-		//{
-		//	//if (add) this._context.Add(parameter);
-		//	if (add) this._results.Add(new TypeMeta()
-		//	{
-		//		Instance = instruction,
-		//		AssemblyName = method.DeclaringType.Module.Assembly.Name.Name,
-		//		//FullName = $"{method.FullName}#{instruction.ToString()}"
-		//		FullName = $"{method.DeclaringType.FullName}.{method.Name}{GenerateParameters(method.Parameters)}#{instruction.ToString()}"
-		//	});
-		//}
+		public void Expand(MethodDefinition method, Instruction instruction, bool add = true)
+		{
+			//if (add) this._context.Add(parameter);
+			if (add) this._results.Add(new MetaData()
+			{
+				Instance = instruction,
+				AssemblyName = method.DeclaringType.Module.Assembly.Name.Name,
+				//FullName = $"{method.FullName}#{instruction.ToString()}"
+				FullName = $"{method.DeclaringType.FullName}.{method.Name}{GenerateParameters(method.Parameters)}#{instruction.ToString()}"
+			});
+		}
 
 		public void Expand(ParameterDefinition parameter, bool add = true)
 		{
@@ -107,14 +108,25 @@ namespace Mod.Framework
 				Expand(parameter);
 			}
 
-			//if (method.HasBody)
-			//{
-			//	foreach (var instruction in method.Body.Instructions)
-			//	{
-			//		Expand(method, instruction);
-			//	}
-			//}
+			if (method.HasBody)
+			{
+				foreach (var instruction in method.Body.Instructions)
+				{
+					Expand(method, instruction);
+				}
+			}
 		}
+
+		public void Expand(FieldDefinition field, bool add = true)
+		{
+			if (add) this._results.Add(new MetaData()
+			{
+				Instance = field,
+				AssemblyName = field.DeclaringType.Module.Assembly.Name.Name,
+				FullName = $"{field.DeclaringType.FullName}.{field.Name}"
+			});
+		}
+
 		public void Expand(TypeDefinition type, bool add = true)
 		{
 			if (add) this._results.Add(new MetaData()
@@ -135,6 +147,10 @@ namespace Mod.Framework
 			foreach (var prop in type.Properties)
 			{
 				Expand(prop);
+			}
+			foreach (var field in type.Fields)
+			{
+				Expand(field);
 			}
 		}
 

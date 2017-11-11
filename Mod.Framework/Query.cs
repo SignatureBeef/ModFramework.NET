@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace Mod.Framework
 {
@@ -9,7 +10,7 @@ namespace Mod.Framework
 	{
 		private AssemblyExpander _expander = new AssemblyExpander();
 		public string Pattern { get; private set; }
-		
+
 		public Query(string pattern, IEnumerable<object> context)
 		{
 			this.Pattern = pattern;
@@ -20,7 +21,7 @@ namespace Mod.Framework
 		public QueryResult Run()
 		{
 			_expander.Expand();
-			
+
 			var patterns = QueryPattern.ParseFrom(this.Pattern);
 
 			var results = new QueryResult()

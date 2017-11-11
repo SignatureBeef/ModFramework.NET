@@ -112,6 +112,49 @@ namespace Mod.Framework.Extensions
 		}
 
 		/// <summary>
+		/// Generates a hook that is called after native code
+		/// </summary>
+		/// <param name="method">Method to generate the hook in</param>
+		/// <param name="options">Configurable hook options</param>
+		/// <returns>A <see cref="MergableMethod"/> instance</returns>
+		public static MergableMethod GenerateHook
+		(
+			this IEnumerable<ParameterDefinition> parameters,
+
+			string name,
+			TypeDefinition parentType,
+			TypeDefinition returnType, HookOptions flags, ModuleDefinition module,
+
+			HookOptions options = HookOptions.Post,
+			VariableDefinition result_variable = null
+		)
+		{
+			// emit call at each ret instruction
+
+			// add or get the types where we are storing out auto generated hooks & their delegates
+			var hooks_type = parentType.GetHooksType();
+			var hooks_delegates_type = parentType.GetHooksDelegateType();
+
+			// generate the hook handler delegate
+			var hook_delegate_emitter = new HookDelegateEmitter("On" + name, parameters, returnType, options, module);
+			var hook_handler = hook_delegate_emitter.Emit();
+			hooks_delegates_type.NestedTypes.Add(hook_handler);
+
+			// generate the api hook external modules can attach to
+			var hook_field = new FieldDefinition(name, FieldAttributes.Public | FieldAttributes.Static, hook_handler);
+			hooks_type.Fields.Add(hook_field);
+
+			// generate the call to the delegate
+			var hook_emitter = new HookEmitter(hook_field, parameters, false, false, result_variable);
+			var result = hook_emitter.Emit();
+
+
+			// end of method
+
+			return result;
+		}
+
+		/// <summary>
 		/// Adds configurable hooks into each method of the query
 		/// </summary>
 		/// <param name="results">Methods to be hooked</param>
@@ -289,80 +332,6 @@ namespace Mod.Framework.Extensions
 		{
 			var hooks_type = GetHooksType(type);
 			return hooks_type.AddOrGetNestedType(DefaultHandlersTypeName, DefaultNestedTypeAttributes);
-		}
-
-		/// <summary>
-		/// Clones the signatures of a method into a new empty method.
-		/// This is used to replace native methods.
-		/// </summary>
-		/// <param name="method">The method to clone</param>
-		/// <returns>The new cloned method</returns>
-		public static MethodDefinition Clone(this MethodDefinition method)
-		{
-			var clone = new MethodDefinition(method.Name, method.Attributes, method.ReturnType)
-			{
-				ImplAttributes = method.ImplAttributes
-			};
-
-			foreach (var param in method.Parameters)
-			{
-				var parameter = new ParameterDefinition(param.Name, param.Attributes, param.ParameterType);
-				//{
-				//	HasConstant = param.HasConstant,
-				//	HasDefault = param.HasDefault,
-				//	Constant = param.Constant
-				//};
-
-				if (param.HasConstant)
-				{
-					parameter.HasConstant = true;
-					parameter.Constant = param.Constant;
-				}
-				if (param.HasDefault)
-				{
-					parameter.HasDefault = true;
-				}
-
-				clone.Parameters.Add(parameter);
-			}
-
-			foreach (var method_ref in method.Overrides)
-			{
-				clone.Overrides.Add(method_ref);
-			}
-
-			foreach (var param in method.GenericParameters)
-			{
-				clone.GenericParameters.Add(param);
-			}
-
-			foreach (var attribute in method.CustomAttributes)
-			{
-				clone.CustomAttributes.Add(attribute);
-			}
-
-			foreach (var security_declaration in method.SecurityDeclarations)
-			{
-				clone.SecurityDeclarations.Add(security_declaration);
-			}
-
-			//clone.PInvokeInfo = method.PInvokeInfo;
-
-			return clone;
-		}
-
-		/// <summary>
-		/// Clones the signatures of a method into a new empty method.
-		/// This is used to replace native methods.
-		/// </summary>
-		/// <param name="methods">The methods to clone</param>
-		/// <returns>The new cloned methods</returns>
-		public static IEnumerable<MethodDefinition> Clone(this IEnumerable<MethodDefinition> methods)
-		{
-			foreach (var method in methods)
-			{
-				yield return method.Clone();
-			}
 		}
 		#endregion
 	}

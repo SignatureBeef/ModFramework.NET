@@ -74,7 +74,7 @@ namespace Mod.Framework.Emitters
 
 		private void EmitBeginInvoke(TypeDefinition delegateType)
 		{
-			var method = new MethodDefinition("BeginInvoke", InvokeAttributes, this._returnType);
+			var method = new MethodDefinition("BeginInvoke", InvokeAttributes, this._module.TypeSystem.Void);
 
 			foreach (var parameter in this._parameters)
 			{
