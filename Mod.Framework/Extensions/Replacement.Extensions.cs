@@ -80,7 +80,7 @@ namespace Mod.Framework.Extensions
 			field.IsPrivate = true;
 
 			field.CustomAttributes.Add(new CustomAttribute(
-				field.DeclaringType.Module.Import(
+				field.DeclaringType.Module.ImportReference(
 					typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
 						.GetConstructors()
 						.Single()
@@ -142,7 +142,7 @@ namespace Mod.Framework.Extensions
 						else if (methods.Count() > 1)
 							throw new Exception($"Too many methods named `{operandMethodRef.Name}` found in {replacement.FullName}");
 
-						ins_set.instruction.Operand = currentType.Module.Import(methods.Single());
+						ins_set.instruction.Operand = currentType.Module.ImportReference(methods.Single());
 					}
 				}
 
@@ -162,7 +162,7 @@ namespace Mod.Framework.Extensions
 							else if (methods.Count() > 1)
 								throw new Exception($"Too many methods named `{operandMethodRef.Name}` found in {replacement.FullName}");
 
-							ins_set.instruction.Operand = currentType.Module.Import(methods.Single());
+							ins_set.instruction.Operand = currentType.Module.ImportReference(methods.Single());
 						}
 					}
 				}
@@ -253,7 +253,7 @@ namespace Mod.Framework.Extensions
 				});
 
 				//instruction.OpCode = OpCodes.Call;
-				//instruction.Operand = currentType.Module.Import(item.GetMethod);
+				//instruction.Operand = currentType.Module.ImportReference(item.GetMethod);
 			}
 
 			#region Local variables
@@ -400,7 +400,7 @@ namespace Mod.Framework.Extensions
 
 				//Update the new target to take the old targets place
 				newTarget.Offset = current.Offset;
-				newTarget.SequencePoint = current.SequencePoint;
+				//newTarget.SequencePoint = current.SequencePoint;
 				newTarget.Offset++; //TODO: spend some time to figure out why this is incrementing
 			}
 		}
@@ -414,7 +414,7 @@ namespace Mod.Framework.Extensions
 		{
 			var elementType = interfaceType.Property("Item").GetMethod.ReturnType;
 
-			var genericVersion = elementType.Module.Import(typeof(DefaultCollection<>));
+			var genericVersion = elementType.Module.ImportReference(typeof(DefaultCollection<>));
 
 			//TODO: clone the default collection to the target assembly
 			//		method body cloning needs to be implemented correctly to do this, or perhaps being able to use ILRepack as a library (it's clone functionality is hidden)
@@ -425,8 +425,8 @@ namespace Mod.Framework.Extensions
 			g.GenericArguments.Clear();
 			g.GenericArguments.Add(elementType);
 
-			TypeDefinition gi = new TypeDefinition(interfaceType.Namespace, "Default" + interfaceType.Name.TrimStart('I'), TypeAttributes.Public | TypeAttributes.BeforeFieldInit, interfaceType.Module.Import(g));
-			gi.Interfaces.Add(interfaceType);
+			TypeDefinition gi = new TypeDefinition(interfaceType.Namespace, "Default" + interfaceType.Name.TrimStart('I'), TypeAttributes.Public | TypeAttributes.BeforeFieldInit, interfaceType.Module.ImportReference(g));
+			gi.Interfaces.Add(new InterfaceImplementation(interfaceType));
 
 			interfaceType.Module.Types.Add(gi);
 
@@ -440,7 +440,7 @@ namespace Mod.Framework.Extensions
 
 			il.InsertBefore(ret,
 				new { OpCodes.Ldarg_0 },
-				new { OpCodes.Call, Operand = gi.Module.Import(basector) }
+				new { OpCodes.Call, Operand = gi.Module.ImportReference(basector) }
 			);
 
 			gi.Methods.Add(ctor);
@@ -500,7 +500,7 @@ namespace Mod.Framework.Extensions
 					// emit default impl collection for constructors
 					var defaultCollection = GenerateImplementedCollection(existing_interface);
 
-					//var r = field.Module.Import(typeof(DefaultCollection)).Resolve();
+					//var r = field.Module.ImportReference(typeof(DefaultCollection)).Resolve();
 
 					field.FieldType.ReplaceWith(existing_interface, constructorReplacement: defaultCollection);
 				}
@@ -578,7 +578,7 @@ namespace Mod.Framework.Extensions
 
 						//Swap the instruction to call the propertys getter
 						ins_set.instruction.OpCode = OpCodes.Callvirt;
-						ins_set.instruction.Operand = field.Module.Import(property.GetMethod);
+						ins_set.instruction.Operand = field.Module.ImportReference(property.GetMethod);
 					}
 					else if (ins_set.instruction.OpCode == OpCodes.Stfld)
 					{
@@ -593,7 +593,7 @@ namespace Mod.Framework.Extensions
 
 						//Swap the instruction to call the propertys setter
 						ins_set.instruction.OpCode = OpCodes.Callvirt;
-						ins_set.instruction.Operand = field.Module.Import(property.SetMethod);
+						ins_set.instruction.Operand = field.Module.ImportReference(property.SetMethod);
 					}
 				}
 			}

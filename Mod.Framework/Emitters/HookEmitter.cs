@@ -59,7 +59,7 @@ namespace Mod.Framework.Emitters
 			var invoke_method = _hook_field.FieldType.Resolve().Method("Invoke");
 
 			VariableDefinition
-				local_field_instance = new VariableDefinition("continue_method", invoke_method.ReturnType)
+				local_field_instance = new VariableDefinition(invoke_method.ReturnType)
 			;
 
 			InstructionReference

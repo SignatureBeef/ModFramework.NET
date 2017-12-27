@@ -200,7 +200,7 @@ namespace Mod.Framework.Extensions
 					.SingleOrDefault(x => x.OpCode == OpCodes.Pop); // expect one here as the CallEmitter should only handle one. if it changes this needs to change
 				if (nop != null)
 				{
-					return_variable = new VariableDefinition("direct_result", method.ReturnType);
+					return_variable = new VariableDefinition(method.ReturnType);
 					new_method.Body.Variables.Add(return_variable);
 					nop.Operand = return_variable;
 					nop.OpCode = OpCodes.Stloc_S;

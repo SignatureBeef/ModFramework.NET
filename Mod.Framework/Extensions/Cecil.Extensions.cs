@@ -91,8 +91,7 @@ namespace Mod.Framework.Extensions
 
 				foreach (var intf in definition.Interfaces)
 				{
-					var generic = intf as GenericInstanceType;
-
+					var generic = intf.InterfaceType as GenericInstanceType;
 					if (generic != null)
 					{
 						foreach (var argumentType in generic.GenericArguments)

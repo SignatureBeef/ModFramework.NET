@@ -30,8 +30,8 @@ namespace Mod.Framework.Emitters
 			this._parameters = parameters;
 			this._module = module;
 
-			this.t_iasyncresult = module.Import(typeof(IAsyncResult));
-			this.t_asynccallback = module.Import(typeof(AsyncCallback));
+			this.t_iasyncresult = module.ImportReference(typeof(IAsyncResult));
+			this.t_asynccallback = module.ImportReference(typeof(AsyncCallback));
 		}
 
 		private void EmitConstructor(TypeDefinition delegateType)
@@ -102,7 +102,7 @@ namespace Mod.Framework.Emitters
 		{
 			var type = new TypeDefinition(String.Empty, this._name, TypeAttributes.NestedPublic | TypeAttributes.Sealed);
 
-			type.BaseType = this._module.Import(typeof(MulticastDelegate));
+			type.BaseType = this._module.ImportReference(typeof(MulticastDelegate));
 
 			EmitConstructor(type);
 			EmitInvoke(type);

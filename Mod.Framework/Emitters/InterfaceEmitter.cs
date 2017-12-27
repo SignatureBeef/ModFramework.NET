@@ -94,7 +94,7 @@ namespace Mod.Framework.Emitters
 				
 				// todo: emitter
 				// this will instruct InvokeMember to use the Item property when the array is called like this: array[0,0]
-				var defaultAttribute = _from.Module.Import(typeof(System.Reflection.DefaultMemberAttribute).GetConstructor(new[] { typeof(string) }));
+				var defaultAttribute = _from.Module.ImportReference(typeof(System.Reflection.DefaultMemberAttribute).GetConstructor(new[] { typeof(string) }));
 				var defaultPropertyAttribute = new CustomAttribute(defaultAttribute);
 				defaultPropertyAttribute.ConstructorArguments.Add(new CustomAttributeArgument(_from.Module.TypeSystem.String, item.Name));
 				interface_type.CustomAttributes.Add(defaultPropertyAttribute);

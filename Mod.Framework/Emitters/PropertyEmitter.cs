@@ -87,7 +87,7 @@ namespace Mod.Framework.Emitters
 
 				//This is required or it will be shown when you decompile
 				field.CustomAttributes.Add(new CustomAttribute(
-					property.Module.Import(
+					property.Module.ImportReference(
 						typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
 							.GetConstructors()
 							.Single()
@@ -137,7 +137,7 @@ namespace Mod.Framework.Emitters
 			{
 				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
 				method.CustomAttributes.Add(new CustomAttribute(
-					_declaringType.Module.Import(
+					_declaringType.Module.ImportReference(
 						typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
 							.GetConstructors()
 							.Single()
@@ -194,7 +194,7 @@ namespace Mod.Framework.Emitters
 			{
 				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
 				method.CustomAttributes.Add(new CustomAttribute(
-					property.DeclaringType.Module.Import(
+					property.DeclaringType.Module.ImportReference(
 						typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
 							.GetConstructors()
 							.Single()

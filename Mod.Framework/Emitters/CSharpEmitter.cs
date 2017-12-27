@@ -9,6 +9,17 @@ namespace Mod.Framework.Emitters
 {
 	// TODO: Test CSharpEmitter
 
+	public class CSharpEmitter2<TReturnObject> : IEmitter<TReturnObject>
+	{
+		public TReturnObject Emit()
+		{
+			//CSharpDecompiler
+			//var d = new CSharpDecompiler();
+
+			return default(TReturnObject);
+		}
+	}
+
 	/// <summary>
 	/// This emitter can accept C# code 
 	/// </summary>
