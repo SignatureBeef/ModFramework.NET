@@ -28,6 +28,8 @@ namespace Mod.Framework
 		{
 			this.Assemblies.Add(Assembly.GetExecutingAssembly());
 			this.Assemblies.AddRange(module_assemblies);
+
+			this.Initialise();
 		}
 
 		#region Private methods
@@ -126,8 +128,6 @@ namespace Mod.Framework
 		/// </summary>
 		public void RunModules()
 		{
-			this.Initialise();
-
 			var modules = _kernel.GetAll<RunnableModule>().OrderBy(x => x.Order);
 			foreach (RunnableModule module in modules)
 			{
@@ -152,7 +152,8 @@ namespace Mod.Framework
 				if (disposing)
 				{
 					// TODO: dispose managed state (managed objects).
-					_kernel.Dispose();
+					_kernel?.Dispose();
+					_kernel = null;
 				}
 
 				// TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

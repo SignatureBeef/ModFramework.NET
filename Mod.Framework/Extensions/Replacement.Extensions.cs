@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Mod.Framework.Extensions
+namespace Mod.Framework
 {
 	/// <summary>
 	/// A very-VERY basic stack counter. Some of it's uses are finding the parameters for a method usin.

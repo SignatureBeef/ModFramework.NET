@@ -1,12 +1,11 @@
 ﻿using Mod.Framework.Emitters;
-using Mod.Framework.Extensions;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Mod.Framework.Extensions
+namespace Mod.Framework
 {
 	public static class HookingExtensions
 	{

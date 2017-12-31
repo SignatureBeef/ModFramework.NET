@@ -1,5 +1,4 @@
-﻿using Mod.Framework.Extensions;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using System.Linq;
 
 namespace Mod.Framework.Emitters

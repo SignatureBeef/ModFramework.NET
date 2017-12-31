@@ -1,7 +1,7 @@
 ﻿using Mono.Cecil;
 using System.Linq;
 
-namespace Mod.Framework.Extensions
+namespace Mod.Framework
 {
 	public static class ShorthandExtensions
 	{

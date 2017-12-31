@@ -1,5 +1,4 @@
-﻿using Mod.Framework.Extensions;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using System;
 using System.Collections.Generic;

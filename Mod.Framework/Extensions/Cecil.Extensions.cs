@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Mod.Framework.Extensions
+namespace Mod.Framework
 {
 	public static class CecilExtensions
 	{
@@ -36,7 +36,6 @@ namespace Mod.Framework.Extensions
 		{
 			return assembly.Modules.SelectMany(m => m.SelectInstructions());
 		}
-
 		#endregion
 
 		#region Module Extensions
@@ -66,9 +65,7 @@ namespace Mod.Framework.Extensions
 		}
 		#endregion
 
-
 		#region Type Extensions
-
 		public static IEnumerable<TypeDefinition> AsDefinitions(this IEnumerable<TypeReference> types)
 		{
 			foreach (var type in types)
@@ -134,9 +131,44 @@ namespace Mod.Framework.Extensions
 		}
 		#endregion
 
-
-
 		#region Method
+		/// <summary>
+		/// Finds the first match of the given OpCode pattern
+		/// </summary>
+		/// <param name="method">The method to search in</param>
+		/// <param name="opcodes">The pattern of opcodes</param>
+		/// <returns>The first and last instruction found by the pattern.</returns>
+		public static (Instruction first, Instruction last) FindPattern(this MethodDefinition method, params OpCode[] opcodes)
+		{
+			Instruction first = null, last = null;
+			foreach (var ins in method.Body.Instructions)
+			{
+				first = null;
+				last = null;
+				Instruction match = ins;
+				foreach (var opcode in opcodes)
+				{
+					if (opcode == match.OpCode)
+					{
+						if (first == null) first = match;
+						last = match;
+						match = match.Next;
+					}
+					else
+					{
+						first = null;
+						last = null;
+						break;
+					}
+				}
+
+				if (first != null && last != null)
+					break;
+			}
+
+			return (first, last);
+		}
+
 		/// <summary>
 		/// Returns a cleaned name that can be used to add a new method into a type
 		/// </summary>
@@ -235,8 +267,6 @@ namespace Mod.Framework.Extensions
 		#endregion
 
 		#region Type
-
-
 		/// <summary>
 		/// Ensures all members of the type are publicly accessible
 		/// </summary>
@@ -390,7 +420,7 @@ namespace Mod.Framework.Extensions
 		}
 		#endregion
 
-		#region ILProcesor
+		#region ILProcessor
 		/// <summary>
 		/// Inserts a group of instructions after the target instruction
 		/// </summary>
