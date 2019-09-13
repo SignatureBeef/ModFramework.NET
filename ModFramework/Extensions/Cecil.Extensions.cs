@@ -468,5 +468,68 @@ namespace Mod.Framework
 			return null;
 		}
 		#endregion
+
+		/// <summary>
+		/// Removes a function call and its parameter instructions
+		/// </summary>
+		/// <remarks>This is only very basic, so it doesn't handle all scenarios</remarks>
+		/// <param name="instruction"></param>
+		public static void RemoveCall(this MethodDefinition method, Instruction instruction)
+		{
+			var mr = instruction.Operand as MethodReference;
+
+			var processor = method.Body.GetILProcessor();
+
+			// if the call is non void we must remove the instructions that
+			// consume the stack
+			// currently i only care about Pop, trying to support other
+			// instructions that consume the stack can add a lot of complexity
+			if (instruction.OpCode.StackBehaviourPop == StackBehaviour.Varpop)
+			{
+				if (instruction.Next.OpCode == OpCodes.Pop)
+				{
+					processor.Remove(instruction.Next);
+				}
+			}
+
+			if (mr.HasParameters)
+			{
+				// function requires parameters, so we must count the stack
+				// and remove the block
+
+				// construct the list of instructions before the call
+				var instructions = new List<Instruction>();
+				var ins = instruction;
+				while (ins.Previous != null)
+				{
+					instructions.Add(ins);
+					ins = ins.Previous;
+				}
+				instructions.Reverse();
+
+				// use the basic stack counter to detect each block
+				var remove = new List<Instruction>();
+				var counter = new StackCounter(instructions);
+				counter.Eval((ins_on_stack, count) =>
+				{
+					if (ins_on_stack == instruction)
+					{
+						// remove this block
+						var c = count;
+						var i = ins_on_stack;
+						while (c-- >= 0)
+						{
+							remove.Add(i);
+							i = i.Previous;
+						}
+					}
+				});
+
+				foreach (var r_ins in remove)
+				{
+					processor.Remove(r_ins);
+				}
+			}
+		}
 	}
 }
