@@ -1,11 +1,11 @@
-﻿using Mono.Cecil;
-using Ninject;
-using Ninject.Extensions.Conventions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Mono.Cecil;
+using Ninject;
+using Ninject.Extensions.Conventions;
 
 namespace Mod.Framework
 {
@@ -168,8 +168,15 @@ namespace Mod.Framework
 			{
 				foreach (var file in Glob.Glob.Expand(glob))
 				{
-					var assembly = Assembly.LoadFile(file.FullName);
-					RegisterAssemblies(assembly);
+					try
+					{
+						var assembly = Assembly.LoadFile(file.FullName);
+						RegisterAssemblies(assembly);
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine($"Failed to load {file.FullName}: {ex}");
+					}
 				}
 			}
 

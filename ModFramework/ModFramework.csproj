@@ -15,6 +15,8 @@
     <PackageReference Include="ninject.extensions.conventions" Version="3.3.0" />
     <PackageReference Include="NuGet.Packaging" Version="5.2.0" />
     <PackageReference Include="NuGet.Protocol.Core.v3" Version="4.2.0" />
+    <PackageReference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform" Version="2.0.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="3.2.1" />
   </ItemGroup>
   <ItemGroup>
     <None Remove=".editorconfig" />

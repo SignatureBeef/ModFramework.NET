@@ -531,5 +531,23 @@ namespace Mod.Framework
 				}
 			}
 		}
+
+
+		public static Instruction EnsureImported(this ModuleDefinition module, Instruction instruction)
+		{
+			var methodReference = instruction.Operand as MethodReference;
+			if (methodReference != null)
+			{
+				instruction.Operand = module.ImportReference(methodReference);
+			}
+
+			var fieldReference = instruction.Operand as FieldReference;
+			if (fieldReference != null)
+			{
+				instruction.Operand = module.ImportReference(fieldReference);
+			}
+
+			return instruction;
+		}
 	}
 }
