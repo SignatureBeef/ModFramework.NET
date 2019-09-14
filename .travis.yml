@@ -1,10 +1,5 @@
 language: csharp
-mono:
-  - beta
-solution: Mod.Framework.sln
-install:
-  - mozroots --import --sync
-  - curl -L -o nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
-  - mono nuget.exe restore Mod.Framework.sln
+mono: none
+dotnet: 2.0.0
 script:
-  - msbuild ModFramework.sln /verbosity:minimal 
+  - dotnet build
