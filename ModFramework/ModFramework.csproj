@@ -21,4 +21,5 @@
   <ItemGroup>
     <None Remove=".editorconfig" />
   </ItemGroup>
+  <Target Name="CheckIfShouldKillVBCSCompiler" />
 </Project>
