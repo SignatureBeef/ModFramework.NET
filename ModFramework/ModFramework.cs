@@ -29,13 +29,14 @@ namespace Mod.Framework
 			@"./Modifications/**/**.dll",
 		};
 
-		private struct EmbeddedAssembly
+		public struct EmbeddedAssembly
 		{
 			public AssemblyDefinition Assembly { get; set; }
 			public ModuleDefinition Module { get; set; }
 			public EmbeddedResource Resource { get; set; }
+			public byte[] Data { get; set; }
 		}
-		private List<EmbeddedAssembly> embeddedAssemblies { get; set; } = new List<EmbeddedAssembly>();
+		public List<EmbeddedAssembly> EmbeddedAssemblies { get; set; } = new List<EmbeddedAssembly>();
 
 		public ModFramework(params Assembly[] module_assemblies)
 		{
@@ -101,11 +102,12 @@ namespace Mod.Framework
 									var ms = new MemoryStream(data);
 									var resource_asm = AssemblyDefinition.ReadAssembly(ms, _readerParameters);
 
-									embeddedAssemblies.Add(new EmbeddedAssembly()
+									EmbeddedAssemblies.Add(new EmbeddedAssembly()
 									{
 										Assembly = resource_asm,
 										Module = module,
-										Resource = er
+										Resource = er,
+										Data = data,
 									});
 
 									CecilAssemblies.Add(resource_asm);
@@ -206,7 +208,7 @@ namespace Mod.Framework
 		{
 			// remove the existing resource and replace it with the new one
 
-			foreach (var resource in this.embeddedAssemblies)
+			foreach (var resource in this.EmbeddedAssemblies)
 			{
 				resource.Module.Resources.Remove(resource.Resource);
 

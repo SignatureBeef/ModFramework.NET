@@ -18,20 +18,21 @@ namespace Mod.Framework
 		/// <param name="module"></param>
 		/// <param name="csharp"></param>
 		/// <param name="references"></param>
-		/// <param name="ingoreAccessAssemblies"></param>
+		/// <param name="ignoreAccessAssemblies"></param>
 		/// <returns></returns>
 		public static Mono.Cecil.MethodDefinition TryGetCSharpScript(this Module module,
 			string csharp,
 			IEnumerable<MetadataReference> references = null,
-			IEnumerable<string> ingoreAccessAssemblies = null
+			IEnumerable<string> ignoreAccessAssemblies = null,
+			string methodBodyType = "public static void"
 		)
 		{
 			// uses a trick found here for ingnoring accessibility: https://www.strathweb.com/2018/10/no-internalvisibleto-no-problem-bypassing-c-visibility-rules-with-roslyn/
-			var ignores = String.Join("\n", ingoreAccessAssemblies.Select(x => $"[assembly: System.Runtime.CompilerServices.IgnoresAccessChecksTo(\"{x}\")]"));
+			var ignores = String.Join("\n", (ignoreAccessAssemblies ?? Enumerable.Empty<string>()).Select(x => $"[assembly: System.Runtime.CompilerServices.IgnoresAccessChecksTo(\"{x}\")]"));
 			var template = @"
 				" + ignores + @"
 
-				class Template { public static void Container() {
+				class Template { " + methodBodyType + @" Container() {
 					" + csharp + @"
 				} }
 
