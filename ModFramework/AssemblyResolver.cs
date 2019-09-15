@@ -89,33 +89,6 @@ namespace Mod.Framework
 			}
 		}
 
-		void GetPackageDependencies(PackageIdentity package,
-			NuGetFramework framework,
-			SourceCacheContext cacheContext,
-			ILogger logger,
-			IEnumerable<SourceRepository> repositories,
-			ISet<SourcePackageDependencyInfo> availablePackages)
-		{
-			if (availablePackages.Contains(package)) return;
-
-			foreach (var sourceRepository in repositories)
-			{
-				var dependencyInfoResource = sourceRepository.GetResourceAsync<DependencyInfoResource>().Result;
-				var dependencyInfo = dependencyInfoResource.ResolvePackage(
-					package, framework, cacheContext, logger, CancellationToken.None).Result;
-
-				if (dependencyInfo == null) continue;
-
-				availablePackages.Add(dependencyInfo);
-				foreach (var dependency in dependencyInfo.Dependencies)
-				{
-					GetPackageDependencies(
-					   new PackageIdentity(dependency.Id, dependency.VersionRange.MinVersion),
-					   framework, cacheContext, logger, repositories, availablePackages);
-				}
-			}
-		}
-
 		public virtual AssemblyDefinition TryNugetResolve(AssemblyNameReference name)
 		{
 			var package = new NuGet.Packaging.Core.PackageIdentity(name.Name, null);
