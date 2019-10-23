@@ -1,11 +1,11 @@
-﻿using Mod.Framework.Collections;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Mod.Framework.Collections;
 using Mod.Framework.Emitters;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Mod.Framework
 {
@@ -387,7 +387,7 @@ namespace Mod.Framework
 			);
 
 			gi.Methods.Add(ctor);
-			
+
 			// when the gnericVersion instance is eventually cloned in, we then need to change the implemented members to use final etc
 			// without these any call to an implemented method will result in a "method has no implementation". 
 			// currently we aren't cloning, so this needs to be forced in the Mod.Framework via code.
@@ -476,7 +476,6 @@ namespace Mod.Framework
 			}
 			else throw new NotSupportedException();
 		}
-
 
 		/// <summary>
 		/// Replaces all occurrences of a field with a property call by simply swapping
