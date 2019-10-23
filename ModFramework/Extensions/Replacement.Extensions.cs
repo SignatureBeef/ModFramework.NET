@@ -22,13 +22,13 @@ namespace Mod.Framework
 			field.IsPublic = false;
 			field.IsPrivate = true;
 
-			field.CustomAttributes.Add(new CustomAttribute(
-				field.DeclaringType.Module.ImportReference(
-					typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
-						.GetConstructors()
-						.Single()
-				)
-			));
+			//field.CustomAttributes.Add(new CustomAttribute(
+			//	field.DeclaringType.Module.ImportReference(
+			//		typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
+			//			.GetConstructors()
+			//			.Single()
+			//	)
+			//));
 
 			return emitter.Emit();
 		}

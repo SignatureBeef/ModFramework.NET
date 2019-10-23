@@ -6,6 +6,14 @@ namespace Mod.Framework
 	public static class ShorthandExtensions
 	{
 		/// <summary>
+		/// Determines if a type exists
+		/// </summary>
+		public static bool HasType(this AssemblyDefinition assemblyDefinition, string name)
+		{
+			return assemblyDefinition.MainModule.Types.Any(x => x.FullName == name);
+		}
+
+		/// <summary>
 		/// Gets a type from the assembly using <see cref="TypeReference.FullName"/>
 		/// </summary>
 		/// <param name="assemblyDefinition"></param>

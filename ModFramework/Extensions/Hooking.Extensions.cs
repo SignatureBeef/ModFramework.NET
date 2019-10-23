@@ -156,6 +156,15 @@ namespace Mod.Framework
 		/// <summary>
 		/// Adds configurable hooks into each method of the query
 		/// </summary>
+		/// <param name="query">The Query</param>
+		/// <param name="options">Hook options</param>
+		/// <returns>The existing <see cref="QueryResult"/> instance</returns>
+		public static QueryResult Hook(this Query query, HookOptions options = HookOptions.Default)
+			=> query.Run().Hook(options);
+
+		/// <summary>
+		/// Adds configurable hooks into each method of the query
+		/// </summary>
 		/// <param name="results">Methods to be hooked</param>
 		/// <param name="options">Hook options</param>
 		/// <returns>The existing <see cref="QueryResult"/> instance</returns>

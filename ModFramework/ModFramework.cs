@@ -240,6 +240,7 @@ namespace Mod.Framework
 
 		#region IDisposable Support
 		private bool disposedValue = false; // To detect redundant calls
+		private bool disposedComplete = false; // To detect redundant calls
 
 		protected virtual void Dispose(bool disposing)
 		{
@@ -247,7 +248,11 @@ namespace Mod.Framework
 			{
 				if (disposing)
 				{
-					this.SaveOutput();
+					if (!disposedComplete)
+					{
+						this.SaveOutput();
+						disposedComplete = true;
+					}
 
 					// TODO: dispose managed state (managed objects).
 					_kernel?.Dispose();

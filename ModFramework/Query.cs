@@ -11,6 +11,8 @@ namespace Mod.Framework
 		private AssemblyExpander _expander = new AssemblyExpander();
 		public string Pattern { get; private set; }
 
+		private QueryResult _result = null;
+
 		public Query(string pattern, IEnumerable<object> context)
 		{
 			this.Pattern = pattern;
@@ -20,6 +22,8 @@ namespace Mod.Framework
 
 		public QueryResult Run()
 		{
+			if (_result != null) return _result;
+
 			_expander.Expand();
 
 			var patterns = QueryPattern.ParseFrom(this.Pattern);
@@ -41,7 +45,7 @@ namespace Mod.Framework
 				}
 			}
 
-			return results;
+			return _result = results;
 		}
 	}
 }

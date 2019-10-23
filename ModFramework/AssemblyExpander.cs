@@ -189,7 +189,7 @@ namespace Mod.Framework
 					Expand(module);
 				}
 
-				System.Console.WriteLine($"found {this._results.Count} item(s). Took {(DateTime.Now - expand_start).TotalMilliseconds}ms");
+				System.Console.WriteLine($"found {this._results.Count} item(s). Took {(int)((DateTime.Now - expand_start).TotalMilliseconds)}ms");
 				_assembly_cache.Add(assembly.FullName, this._results);
 			}
 			else

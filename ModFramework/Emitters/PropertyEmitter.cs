@@ -41,11 +41,6 @@ namespace Mod.Framework.Emitters
 		/// <summary>
 		/// Generates a property with getter and setter methods.
 		/// </summary>
-		/// <param name="name"></param>
-		/// <param name="propertyType"></param>
-		/// <param name="declaringType"></param>
-		/// <param name="attributes"></param>
-		/// <returns></returns>
 		public PropertyDefinition GenerateProperty()
 		{
 			//Create the initial property definition
@@ -72,7 +67,7 @@ namespace Mod.Framework.Emitters
 				prop.SetMethod = GenerateSetter(prop);
 				_declaringType.Methods.Add(prop.SetMethod);
 			}
-			
+
 			return prop;
 		}
 
@@ -84,13 +79,9 @@ namespace Mod.Framework.Emitters
 			{
 				field = new FieldDefinition(name, FieldAttributes.Private, property.PropertyType);
 
-				//This is required or it will be shown when you decompile
+				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
 				field.CustomAttributes.Add(new CustomAttribute(
-					property.Module.ImportReference(
-						typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
-							.GetConstructors()
-							.Single()
-					)
+					GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
 				));
 			}
 
@@ -100,9 +91,6 @@ namespace Mod.Framework.Emitters
 		/// <summary>
 		/// Generates a property getter method
 		/// </summary>
-		/// <param name="property"></param>
-		/// <param name="attributes"></param>
-		/// <returns></returns>
 		public MethodDefinition GenerateGetter(PropertyDefinition property, bool instance = true)
 		{
 			//Create the method definition
@@ -136,11 +124,7 @@ namespace Mod.Framework.Emitters
 			{
 				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
 				method.CustomAttributes.Add(new CustomAttribute(
-					_declaringType.Module.ImportReference(
-						typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
-							.GetConstructors()
-							.Single()
-					)
+					GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
 				));
 			}
 
@@ -151,9 +135,6 @@ namespace Mod.Framework.Emitters
 		/// <summary>
 		/// Generates a property setter method
 		/// </summary>
-		/// <param name="property"></param>
-		/// <param name="attributes"></param>
-		/// <returns></returns>
 		public MethodDefinition GenerateSetter(PropertyDefinition property, bool instance = true)
 		{
 			//Create the method definition
@@ -193,11 +174,7 @@ namespace Mod.Framework.Emitters
 			{
 				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
 				method.CustomAttributes.Add(new CustomAttribute(
-					property.DeclaringType.Module.ImportReference(
-						typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)
-							.GetConstructors()
-							.Single()
-					)
+					GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
 				));
 			}
 
@@ -208,6 +185,15 @@ namespace Mod.Framework.Emitters
 		public PropertyDefinition Emit()
 		{
 			return GenerateProperty();
+		}
+
+		MethodReference GetCoreLibMethod(string @namespace, string type, string method)
+		{
+			var type_ref = new TypeReference(@namespace, type,
+				this._declaringType.Module.TypeSystem.String.Module,
+				this._declaringType.Module.TypeSystem.String.Module
+			);
+			return new MethodReference(method, this._declaringType.Module.TypeSystem.Void, type_ref);
 		}
 	}
 }
