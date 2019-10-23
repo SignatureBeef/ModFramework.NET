@@ -206,6 +206,7 @@ namespace Mod.Framework
 
 		private void UpdateEmbeddedAssembies()
 		{
+			Console.WriteLine("Repacking resources");
 			// remove the existing resource and replace it with the new one
 
 			foreach (var resource in this.EmbeddedAssemblies)

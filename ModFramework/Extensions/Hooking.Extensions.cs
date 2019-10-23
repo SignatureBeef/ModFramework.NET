@@ -159,8 +159,13 @@ namespace Mod.Framework
 		/// <param name="query">The Query</param>
 		/// <param name="options">Hook options</param>
 		/// <returns>The existing <see cref="QueryResult"/> instance</returns>
-		public static QueryResult Hook(this Query query, HookOptions options = HookOptions.Default)
+		public static HookResult Hook(this Query query, HookOptions options = HookOptions.Default)
 			=> query.Run().Hook(options);
+
+		public class HookResult : QueryResult
+		{
+			public int Applied { get; set; }
+		}
 
 		/// <summary>
 		/// Adds configurable hooks into each method of the query
@@ -168,8 +173,9 @@ namespace Mod.Framework
 		/// <param name="results">Methods to be hooked</param>
 		/// <param name="options">Hook options</param>
 		/// <returns>The existing <see cref="QueryResult"/> instance</returns>
-		public static QueryResult Hook(this QueryResult results, HookOptions options = HookOptions.Default)
+		public static HookResult Hook(this QueryResult results, HookOptions options = HookOptions.Default)
 		{
+			var applied = 0;
 			var context = results
 				.Select(x => x.Instance as MethodDefinition)
 				.Where(
@@ -181,6 +187,7 @@ namespace Mod.Framework
 
 			foreach (var method in context)
 			{
+				applied++;
 				var new_method = method.Clone();
 
 				// rename method to be suffixed with Direct
@@ -266,7 +273,13 @@ namespace Mod.Framework
 				}
 			}
 
-			return results;
+			var result = new HookResult()
+			{
+				Query = results.Query,
+				Applied = applied,
+			};
+			result.AddRange(results);
+			return result;
 		}
 		#endregion
 

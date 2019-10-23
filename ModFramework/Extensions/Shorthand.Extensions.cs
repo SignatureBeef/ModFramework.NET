@@ -39,9 +39,14 @@ namespace Mod.Framework
 		/// </summary>
 		/// <param name="type">The type to search</param>
 		/// <param name="name">Name of the method</param>
-		public static MethodDefinition Method(this TypeDefinition type, string name)
+		public static MethodDefinition Method(this TypeDefinition type, params string[] name)
 		{
-			return type.Methods.Single(x => x.Name == name);
+			for (var i = 0; i < name.Length - 1; i++)
+			{
+				var match = type.Methods.SingleOrDefault(x => x.Name == name[i]);
+				if (match != null) return match;
+			}
+			return type.Methods.Single(x => x.Name == name[name.Length - 1]);
 		}
 
 		/// <summary>
