@@ -1,139 +1,112 @@
-﻿using Mono.Cecil;
+/*
+Copyright (C) 2020 DeathCradle
+
+This file is part of Open Terraria API v3 (OTAPI)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+using Mono.Cecil;
+using MonoMod.Utils;
+using ModFramework.Relinker;
 using System.Linq;
 
-namespace Mod.Framework.Emitters
+namespace ModFramework
 {
-	/// <summary>
-	/// Generates an interface based on the given type
-	/// </summary>
-	public class InterfaceEmitter : IEmitter<TypeDefinition>
-	{
-		const MethodAttributes DefaultPropertyAttributes = MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Abstract | MethodAttributes.SpecialName;
-		const MethodAttributes DefaultMethodAttributes = MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Abstract;
+    [MonoMod.MonoModIgnore]
+    public static class InterfaceEmitter
+    {
+        public static TypeDefinition RemapAsInterface(this TypeDefinition ElementType, IRelinkProvider relinkProvider)
+        {
+            var iitem = ElementType.RemapWithInterface();
 
-		private TypeReference _from;
-		private string _name;
+            relinkProvider.AddTask(new InterfaceRelinker(ElementType, iitem));
 
-		public InterfaceEmitter(TypeReference from, string name = null)
-		{
-			this._from = from;
-			this._name = name;
-		}
+            return iitem;
+        }
 
-		public TypeDefinition Emit()
-		{
-			TypeDefinition interface_type = new TypeDefinition(_from.Namespace, this._name ?? ("I" + _from.Name), TypeAttributes.Abstract | TypeAttributes.ClassSemanticMask | TypeAttributes.Public);
+        public static TypeDefinition RemapWithInterface(this TypeDefinition ElementType)
+        {
+            TypeDefinition @interface = new TypeDefinition(
+                ElementType.Namespace,
+                $"I{ElementType.Name}",
+                TypeAttributes.Abstract | TypeAttributes.ClassSemanticMask | TypeAttributes.Public
+            );
 
-			_from.Module.Types.Add(interface_type);
+            if (ElementType.Fields.Any(f => !f.HasConstant && !f.IsPrivate))
+                throw new System.NotSupportedException("CS0525: Interfaces cannot contain instance fields");
+            // foreach (var field in ElementType.Fields.Where(f => !f.HasConstant && !f.IsPrivate))
+            // {
+            //     var cf = field.Clone();
+            //     @interface.Fields.Add(cf);
+            // }
 
-			var arrayType = _from as ArrayType;
-			if (arrayType != null)
-			{
-				// todo: make this section an emitter
-				var arrayElementType = arrayType.ElementType.Resolve();
-				
-				var get_Item = new MethodDefinition("get_Item",
-					MethodAttributes.Public |
-					MethodAttributes.HideBySig |
-					MethodAttributes.SpecialName |
-					MethodAttributes.NewSlot |
-					MethodAttributes.Abstract |
-					MethodAttributes.Virtual,
-					arrayElementType
-				);
-				for (var i = 0; i < arrayType.Dimensions.Count; i++)
-				{
-					get_Item.Parameters.Add(new ParameterDefinition("i" + i, ParameterAttributes.None, _from.Module.TypeSystem.Int32));
-				}
+            foreach (var prop in ElementType.Properties.Where(p => p.HasThis))
+            {
+                var cp = prop.Clone();
+                cp.DeclaringType = null;
+                foreach (var method in new[] { cp.GetMethod, cp.SetMethod }.Where(x => x != null))
+                {
+                    method.DeclaringType = null;
+                    method.Body = null;
 
-				var set_Item = new MethodDefinition("set_Item",
-					MethodAttributes.Public |
-					MethodAttributes.HideBySig |
-					MethodAttributes.SpecialName |
-					MethodAttributes.NewSlot |
-					MethodAttributes.Abstract |
-					MethodAttributes.Virtual,
-					_from.Module.TypeSystem.Void
-				);
-				for (var i = 0; i < arrayType.Dimensions.Count; i++)
-				{
-					set_Item.Parameters.Add(new ParameterDefinition("i" + i, ParameterAttributes.None, _from.Module.TypeSystem.Int32));
-				}
-				set_Item.Parameters.Add(new ParameterDefinition("item", ParameterAttributes.None, arrayElementType));
+                    // enforce interface requirements
+                    method.Attributes |= MethodAttributes.NewSlot | MethodAttributes.Abstract | MethodAttributes.Virtual;
 
-				var item = new PropertyDefinition("Item", PropertyAttributes.None, arrayElementType);
-				for (var i = 0; i < arrayType.Dimensions.Count; i++)
-				{
-					item.Parameters.Add(new ParameterDefinition("i" + i, ParameterAttributes.None, _from.Module.TypeSystem.Int32));
-				}
-				item.GetMethod = get_Item;
-				item.SetMethod = set_Item;
-				// end emitter
+                    // remove any System.Runtime.CompilerServices.CompilerGeneratedAttribute
+                    var attr = method.CustomAttributes.SingleOrDefault(x =>
+                        x.AttributeType.FullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute"
+                    );
+                    if (attr != null)
+                        method.CustomAttributes.Remove(attr);
 
-				// due to a interface limitation, i generate the init method which is called instead of a constructor
-				var initialise = new MethodDefinition("Initialise",
-					//Mono.Cecil.MethodAttributes.Public | Mono.Cecil.MethodAttributes.Final | Mono.Cecil.MethodAttributes.Virtual | Mono.Cecil.MethodAttributes.HideBySig | Mono.Cecil.MethodAttributes.NewSlot,
-					MethodAttributes.Public |
-					MethodAttributes.HideBySig |
-					MethodAttributes.NewSlot |
-					MethodAttributes.Abstract |
-					MethodAttributes.Virtual,
-					_from.Module.TypeSystem.Void
-				);
-				for (var i = 0; i < arrayType.Dimensions.Count; i++)
-				{
-					initialise.Parameters.Add(new ParameterDefinition("i" + i, ParameterAttributes.None, _from.Module.TypeSystem.Int32));
-				}
-				//initialise.Body = null;
+                    @interface.Methods.Add(method);
+                }
+                @interface.Properties.Add(cp);
 
-				interface_type.Methods.Add(initialise);
-				interface_type.Methods.Add(get_Item);
-				interface_type.Methods.Add(set_Item);
-				interface_type.Properties.Add(item);
-				
-				// todo: emitter
-				// this will instruct InvokeMember to use the Item property when the array is called like this: array[0,0]
-				var defaultAttribute = _from.Module.ImportReference(typeof(System.Reflection.DefaultMemberAttribute).GetConstructor(new[] { typeof(string) }));
-				var defaultPropertyAttribute = new CustomAttribute(defaultAttribute);
-				defaultPropertyAttribute.ConstructorArguments.Add(new CustomAttributeArgument(_from.Module.TypeSystem.String, item.Name));
-				interface_type.CustomAttributes.Add(defaultPropertyAttribute);
-			}
+                // satisfy the interface by marking the properties as implemented
+                if (prop.GetMethod != null)
+                    prop.GetMethod.IsNewSlot = prop.GetMethod.IsFinal = prop.GetMethod.IsVirtual = true;
+                if (prop.SetMethod != null)
+                    prop.SetMethod.IsNewSlot = prop.SetMethod.IsFinal = prop.SetMethod.IsVirtual = true;
+            }
 
-			var definition = _from as TypeDefinition;
-			if (definition != null)
-			{
-				foreach (var property in definition.Properties.Where(x =>
-					(x.GetMethod != null && x.GetMethod.IsPublic && !x.GetMethod.IsStatic)
-					|| (x.SetMethod != null && x.SetMethod.IsPublic && !x.SetMethod.IsStatic)
-				))
-				{
-					var emitter = new PropertyEmitter(property.Name, property.PropertyType,
-						getterAttributes: property.GetMethod != null ? DefaultPropertyAttributes : (MethodAttributes?)null,
-						setterAttributes: property.SetMethod != null ? DefaultPropertyAttributes : (MethodAttributes?)null,
-						declaringType: interface_type
-					)
-					{
-						AutoImplementedGetter = false,
-						AutoImplementedSetter = false,
-						CompilerGenerated = false
-					};
-					emitter.Emit();
-				}
+            foreach (var method in ElementType.Methods
+                .Where(m => (m.IsPublic || m.IsAssembly)
+                    && !m.IsStatic
+                    && !m.IsConstructor
+                    && !m.IsVirtual
+                    && !m.IsGetter
+                    && !m.IsSetter
+                )
+            )
+            {
+                var cm = method.Clone();
+                cm.DeclaringType = null;
+                cm.Body = null;
+                // enforce interface requirements
+                cm.Attributes |= MethodAttributes.NewSlot | MethodAttributes.Abstract | MethodAttributes.Virtual;
+                @interface.Methods.Add(cm);
 
-				foreach (var method in definition.Methods.Where(x => (x.IsPublic || x.IsAssembly)
-					&& !x.IsConstructor
-					&& !x.IsGetter
-					&& !x.IsSetter
-					&& !x.IsStatic
-				))
-				{
-					var clone = method.Clone();
-					clone.Attributes = DefaultMethodAttributes;
-					interface_type.Methods.Add(clone);
-				}
-			}
+                // satisfy the interface by marking the properties as implemented
+                method.IsNewSlot = method.IsFinal = method.IsVirtual = true;
+            }
 
-            return interface_type;
-		}
-	}
+            ElementType.Module.Types.Add(@interface);
+
+            ElementType.Interfaces.Add(new InterfaceImplementation(@interface));
+
+            return @interface;
+        }
+    }
 }

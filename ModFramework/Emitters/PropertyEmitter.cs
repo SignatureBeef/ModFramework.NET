@@ -1,199 +1,135 @@
-﻿using Mono.Cecil;
+/*
+Copyright (C) 2020 DeathCradle
+
+This file is part of Open Terraria API v3 (OTAPI)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+using Mono.Cecil;
 using Mono.Cecil.Cil;
+using ModFramework.Relinker;
 using System.Linq;
 
-namespace Mod.Framework.Emitters
+namespace ModFramework
 {
-	/// <summary>
-	/// This emitter produces new <see cref="PropertyDefinition"/> instances that you can add to a type.
-	/// </summary>
-	public class PropertyEmitter : IEmitter<PropertyDefinition>
-	{
-		const PropertyAttributes DefaultAttributes = PropertyAttributes.None;
-		const MethodAttributes DefaultGetterAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
-		const MethodAttributes DefaultSetterAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
+    [MonoMod.MonoModIgnore]
+    public static class PropertyEmitter
+    {
+        const MethodAttributes DefaultMethodAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
 
-		private string _name;
-		private TypeReference _propertyType;
-		private TypeDefinition _declaringType;
-		private PropertyAttributes _attributes;
-		private MethodAttributes? _getterAttributes;
-		private MethodAttributes? _setterAttributes;
+        public static PropertyDefinition RemapAsProperty(this FieldDefinition field, IRelinkProvider relinkProvider)
+        {
+            var property = new PropertyDefinition(field.Name, PropertyAttributes.None, field.FieldType)
+            {
+                HasThis = !field.IsStatic,
+                GetMethod = field.GenerateGetter(),
+                SetMethod = field.GenerateSetter()
+            };
 
-		public bool AutoImplementedGetter { get; set; } = true;
-		public bool AutoImplementedSetter { get; set; } = true;
-		public bool CompilerGenerated { get; set; } = true;
+            //Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
+            field.CustomAttributes.Add(new CustomAttribute(
+                field.DeclaringType.Module
+                    .GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
+            ));
 
-		public PropertyEmitter(string name, TypeReference propertyType,
-			TypeDefinition declaringType = null,
-			PropertyAttributes attributes = DefaultAttributes,
-			MethodAttributes? getterAttributes = DefaultGetterAttributes,
-			MethodAttributes? setterAttributes = DefaultSetterAttributes)
-		{
-			this._name = name;
-			this._propertyType = propertyType;
-			this._declaringType = declaringType;
-			this._attributes = attributes;
-			this._getterAttributes = getterAttributes;
-			this._setterAttributes = setterAttributes;
-		}
+            field.DeclaringType.Properties.Add(property);
 
-		/// <summary>
-		/// Generates a property with getter and setter methods.
-		/// </summary>
-		public PropertyDefinition GenerateProperty()
-		{
-			//Create the initial property definition
-			var prop = new PropertyDefinition(_name, _attributes, _propertyType);
+            // add a task to rewrite the field accessors to properties
+            relinkProvider.AddTask(new FieldToPropertyRelinker(field, property));
 
-			//Set the defaults of the property
-			prop.HasThis = true;
-			if (_declaringType != null)
-			{
-				prop.DeclaringType = _declaringType;
-				prop.DeclaringType.Properties.Add(prop);
-			}
+            field.Name = $"<{field.Name}>k__BackingField";
+            field.Attributes = FieldAttributes.Private;
 
-			if (_getterAttributes.HasValue)
-			{
-				//Generate the getter
-				prop.GetMethod = GenerateGetter(prop);
-				_declaringType.Methods.Add(prop.GetMethod);
-			}
+            return property;
+        }
 
-			if (_setterAttributes.HasValue)
-			{
-				//Generate the setter
-				prop.SetMethod = GenerateSetter(prop);
-				_declaringType.Methods.Add(prop.SetMethod);
-			}
+        public static void RemapFieldsToProperties(this TypeDefinition type, IRelinkProvider relinkProvider)
+        {
+            foreach (var field in type.Fields.Where(f => !f.HasConstant && !f.IsPrivate))
+            {
+                field.RemapAsProperty(relinkProvider);
+            }
+        }
 
-			return prop;
-		}
+        public static MethodDefinition GenerateGetter(this FieldDefinition field)
+        {
+            //Create the method definition
+            var method = new MethodDefinition("get_" + field.Name, DefaultMethodAttributes, field.FieldType);
 
-		private FieldDefinition GetBackingField(PropertyDefinition property)
-		{
-			var name = $"<{property.Name}>k__BackingField";
-			var field = property.DeclaringType.Fields.SingleOrDefault(x => x.Name == name);
-			if (field == null)
-			{
-				field = new FieldDefinition(name, FieldAttributes.Private, property.PropertyType);
+            //Create the il processor so we can alter il
+            var il = method.Body.GetILProcessor();
 
-				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
-				field.CustomAttributes.Add(new CustomAttribute(
-					GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
-				));
-			}
+            //Load the current type instance if required
+            if (!field.IsStatic)
+                il.Append(il.Create(OpCodes.Ldarg_0));
 
-			return field;
-		}
+            //Load the backing field
+            il.Append(il.Create(OpCodes.Ldfld, field));
+            //Return the backing fields value
+            il.Append(il.Create(OpCodes.Ret));
 
-		/// <summary>
-		/// Generates a property getter method
-		/// </summary>
-		public MethodDefinition GenerateGetter(PropertyDefinition property, bool instance = true)
-		{
-			//Create the method definition
-			var method = new MethodDefinition("get_" + property.Name, _getterAttributes.Value, property.PropertyType);
+            //Set basic getter method details 
+            method.Body.InitLocals = true;
+            method.SemanticsAttributes = MethodSemanticsAttributes.Getter;
+            method.IsGetter = true;
 
-			//Reference - this is what we need to essentially replicate
-			//IL_0000: ldarg.0
-			//IL_0001: ldfld int32 OTAPI.Modification.Tile.Modifications.PropertyReferenceTest::'<myData>k__BackingField'
-			//IL_0006: ret
+            //Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
+            method.CustomAttributes.Add(new CustomAttribute(
+                field.DeclaringType.Module
+                    .GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
+            ));
 
-			if (AutoImplementedGetter)
-			{
-				//Create the il processor so we can alter il
-				var il = method.Body.GetILProcessor();
+            field.DeclaringType.Methods.Add(method);
 
-				//Load the current type instance if required
-				if (instance)
-					il.Append(il.Create(OpCodes.Ldarg_0));
-				//Load the backing field
-				il.Append(il.Create(OpCodes.Ldfld, GetBackingField(property)));
-				//Return the backing fields value
-				il.Append(il.Create(OpCodes.Ret));
-			}
+            return method;
+        }
 
-			//Set basic getter method details 
-			if (method.Body != null) method.Body.InitLocals = true;
-			method.SemanticsAttributes = MethodSemanticsAttributes.Getter;
-			method.IsGetter = true;
+        public static MethodDefinition GenerateSetter(this FieldDefinition field)
+        {
+            //Create the method definition
+            var method = new MethodDefinition("set_" + field.Name, DefaultMethodAttributes, field.DeclaringType.Module.TypeSystem.Void);
 
-			if (CompilerGenerated)
-			{
-				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
-				method.CustomAttributes.Add(new CustomAttribute(
-					GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
-				));
-			}
+            //Setters always have a 'value' variable, but it's really just a parameter. We need to add this.
+            method.Parameters.Add(new ParameterDefinition("value", ParameterAttributes.None, field.FieldType));
 
-			//A-ok cap'n
-			return method;
-		}
+            //Create the il processor so we can alter il
+            var il = method.Body.GetILProcessor();
 
-		/// <summary>
-		/// Generates a property setter method
-		/// </summary>
-		public MethodDefinition GenerateSetter(PropertyDefinition property, bool instance = true)
-		{
-			//Create the method definition
-			var method = new MethodDefinition("set_" + property.Name, _setterAttributes.Value, property.Module.TypeSystem.Void);
+            //Load the current type instance if required
+            if (!field.IsStatic)
+                il.Append(il.Create(OpCodes.Ldarg_0));
+            //Load the 'value' parameter we added (alternatively, we could do il.Create(OpCodes.Ldarg, <field definition>)
+            il.Append(il.Create(OpCodes.Ldarg_1));
+            //Store the parameters value into the backing field
+            il.Append(il.Create(OpCodes.Stfld, field));
+            //Return from the method as we are done.
+            il.Append(il.Create(OpCodes.Ret));
 
-			//Setters always have a 'value' variable, but it's really just a parameter. We need to add this.
-			method.Parameters.Add(new ParameterDefinition("value", ParameterAttributes.None, property.PropertyType));
+            //Set basic setter method details 
+            method.Body.InitLocals = true;
+            method.SemanticsAttributes = MethodSemanticsAttributes.Setter;
+            method.IsSetter = true;
 
-			//Reference - this is what we need to essentially replicate
-			//IL_0000: ldarg.0
-			//IL_0001: ldarg.1
-			//IL_0002: stfld int32 OTAPI.Modification.Tile.Modifications.PropertyReferenceTest::'<myData>k__BackingField'
-			//IL_0007: ret
+            //Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
+            method.CustomAttributes.Add(new CustomAttribute(
+                field.DeclaringType.Module
+                    .GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
+            ));
 
-			if (AutoImplementedSetter)
-			{
-				//Create the il processor so we can alter il
-				var il = method.Body.GetILProcessor();
+            field.DeclaringType.Methods.Add(method);
 
-				//Load the current type instance if required
-				if (instance)
-					il.Append(il.Create(OpCodes.Ldarg_0));
-				//Load the 'value' parameter we added (alternatively, we could do il.Create(OpCodes.Ldarg, <parameter definition>)
-				il.Append(il.Create(OpCodes.Ldarg_1));
-				//Store the parameters value into the backing field
-				il.Append(il.Create(OpCodes.Stfld, GetBackingField(property)));
-				//Return from the method as we are done.
-				il.Append(il.Create(OpCodes.Ret));
-			}
-
-			//Set basic setter method details 
-			if (method.Body != null) method.Body.InitLocals = true;
-			method.SemanticsAttributes = MethodSemanticsAttributes.Setter;
-			method.IsSetter = true;
-
-			if (CompilerGenerated)
-			{
-				//Add the CompilerGeneratedAttribute or if you decompile the getter body will be shown
-				method.CustomAttributes.Add(new CustomAttribute(
-					GetCoreLibMethod("System.Runtime.CompilerServices", "CompilerGeneratedAttribute", ".ctor")
-				));
-			}
-
-			//A-ok cap'n
-			return method;
-		}
-
-		public PropertyDefinition Emit()
-		{
-			return GenerateProperty();
-		}
-
-		MethodReference GetCoreLibMethod(string @namespace, string type, string method)
-		{
-			var type_ref = new TypeReference(@namespace, type,
-				this._declaringType.Module.TypeSystem.String.Module,
-				this._declaringType.Module.TypeSystem.String.Module
-			);
-			return new MethodReference(method, this._declaringType.Module.TypeSystem.Void, type_ref);
-		}
-	}
+            return method;
+        }
+    }
 }
