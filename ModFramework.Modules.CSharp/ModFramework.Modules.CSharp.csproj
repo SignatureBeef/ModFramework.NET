@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net5.0</TargetFramework>
-		<PackageVersion>1.0.0-alpha1</PackageVersion>
+		<PackageVersion>1.0.0-alpha4</PackageVersion>
 		<PackageId>ModFramework.Modules.CSharp</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -15,16 +15,11 @@
 		<Description>A plugin for ModFramework that loads CSharp scripts</Description>
 		<PackageReleaseNotes>A plugin for ModFramework that loads CSharp scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
-	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-	  <LangVersion>9.0</LangVersion>
-	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-	  <LangVersion>9.0</LangVersion>
+    <LangVersion>9.0</LangVersion>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="3.10.0" />
-		<PackageReference Include="MonoMod" Version="21.4.29.1" />
+		<PackageReference Include="MonoMod" Version="21.6.21.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0-preview.4.21253.7" />
 	</ItemGroup>

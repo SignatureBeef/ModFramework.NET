@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>net5.0;net472</TargetFrameworks>
-		<PackageVersion>1.0.0-alpha1</PackageVersion>
+		<PackageVersion>1.0.0-alpha4</PackageVersion>
 		<PackageId>ModFramework.Modules.Lua</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -15,12 +15,7 @@
 		<Description>A plugin for ModFramework that loads Lua scripts</Description>
 		<PackageReleaseNotes>A plugin for ModFramework that loads Lua scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
-	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-	  <LangVersion>9.0</LangVersion>
-	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-	  <LangVersion>9.0</LangVersion>
+    <LangVersion>9.0</LangVersion>
 	</PropertyGroup>
 	<ItemGroup>
 	</ItemGroup>

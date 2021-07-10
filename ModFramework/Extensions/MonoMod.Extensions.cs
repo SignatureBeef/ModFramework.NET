@@ -84,5 +84,78 @@ namespace ModFramework
             if (removeAfterCondition)
                 cursor.Remove();
         }
+
+        public static CustomAttribute CreateMetadataAttribute(this ModFwModder mm, string key, string value)
+        {
+            var sac = mm.Module.ImportReference(typeof(System.Reflection.AssemblyMetadataAttribute).GetConstructor(new[] {
+                typeof(string),
+                typeof(string),
+            }));
+            var sa = new CustomAttribute(sac);
+            sa.ConstructorArguments.Add(new CustomAttributeArgument(mm.Module.TypeSystem.String, key));
+            sa.ConstructorArguments.Add(new CustomAttributeArgument(mm.Module.TypeSystem.String, value));
+            return sa;
+        }
+
+        public static void AddMetadata(this ModFwModder mm, string key, string value, bool replace = true)
+        {
+            var existing = mm.GetMetadata(key);
+
+            foreach (var match in existing.ToArray())
+            {
+                mm.Module.Assembly.CustomAttributes.Remove(match);
+            }
+
+            var sa = mm.CreateMetadataAttribute(key, value);
+            mm.Module.Assembly.CustomAttributes.Add(sa);
+        }
+
+        public static IEnumerable<CustomAttribute> GetMetadata(this ModFwModder mm, string key)
+        {
+            var matches = mm.Module.Assembly.CustomAttributes
+                .Where(ca => ca.Constructor.DeclaringType.Name == nameof(System.Reflection.AssemblyMetadataAttribute)
+                    && ca.ConstructorArguments.Count == 2
+                    && ca.ConstructorArguments[0].Type == mm.Module.TypeSystem.String
+                    && ca.ConstructorArguments[1].Type == mm.Module.TypeSystem.String
+                    && ca.ConstructorArguments[0].Value.Equals(key)
+                )
+                .ToArray();
+
+            return matches;
+        }
+
+        public static IEnumerable<string> GetMetadataValues(this ModFwModder mm, string key)
+            => mm.GetMetadata(key).Select(ca => (string)ca.ConstructorArguments[1].Value);
+
+
+        public static CustomAttribute CreateAddVersionAttribute(this ModFwModder mm, string version)
+        {
+            var sac = mm.Module.ImportReference(typeof(System.Reflection.AssemblyInformationalVersionAttribute).GetConstructors()[0]);
+            var sa = new CustomAttribute(sac);
+            sa.ConstructorArguments.Add(new CustomAttributeArgument(mm.Module.TypeSystem.String, version));
+            return sa;
+        }
+
+        public static IEnumerable<CustomAttribute> GetVersionAttributes(this ModFwModder mm)
+        {
+            var matches = mm.Module.Assembly.CustomAttributes
+                .Where(ca => ca.Constructor.DeclaringType.Name == nameof(System.Reflection.AssemblyInformationalVersionAttribute))
+                .ToArray();
+
+            return matches;
+        }
+
+        public static void AddVersion(this ModFwModder mm, string version)
+        {
+            foreach (var match in mm.Module.Assembly.CustomAttributes
+                .Where(ca => ca.Constructor.DeclaringType.Name == nameof(System.Reflection.AssemblyInformationalVersionAttribute)))
+            {
+                match.ConstructorArguments[0] = new CustomAttributeArgument(match.ConstructorArguments[0].Type, version);
+                return;
+            }
+
+            var sa = mm.CreateAddVersionAttribute(version);
+            mm.Module.Assembly.CustomAttributes.Add(sa);
+        }
     }
 }

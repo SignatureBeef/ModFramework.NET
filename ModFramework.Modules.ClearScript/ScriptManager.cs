@@ -1,4 +1,22 @@
-﻿using System;
+﻿/*
+Copyright (C) 2020 DeathCradle
+
+This file is part of Open Terraria API v3 (OTAPI)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -49,6 +67,34 @@ namespace ModFramework.Modules.ClearScript
             Container?.Execute(new DocumentInfo { Category = ModuleCategory.Standard }, "import * as GlobalModule from 'GlobalModule';" +
                 "if(typeof GlobalModule.Dispose == 'function') { GlobalModule.Dispose(); }");
             ModuleResolver?.Unload("GlobalModule");
+        }
+
+        public IEnumerable<string> GetComments()
+        {
+            return Content.Split('\n')
+                .Where(line => (line.Trim().StartsWith("// @doc", StringComparison.CurrentCultureIgnoreCase)))
+                .Select(v => v.Replace("// ", "").Trim());
+        }
+
+        void RegisterComments()
+        {
+            var doc = Manager.GetMarkdownDocumentor();
+            if (doc is not null)
+            {
+                var comments = this.GetComments();
+                if (comments.Any())
+                {
+                    foreach (var comment in comments)
+                    {
+                        doc.Add(new BasicComment()
+                        {
+                            Comments = comment,
+                            Type = "script",
+                            FilePath = this.FilePath,
+                        });
+                    }
+                }
+            }
         }
 
         public void Dispose()
@@ -120,6 +166,8 @@ namespace ModFramework.Modules.ClearScript
 
                 //LoadResult = Container.Evaluate(new DocumentInfo { Category = ModuleCategory.Standard }, Content);
                 LoadResult = Container.Evaluate(new DocumentInfo { Category = ModuleCategory.Standard }, "import * as GlobalModule from 'GlobalModule';");
+
+                RegisterComments();
             }
             catch (Exception ex)
             {
@@ -139,15 +187,30 @@ namespace ModFramework.Modules.ClearScript
         private List<JSScript> _scripts { get; } = new List<JSScript>();
         private FileSystemWatcher _watcher { get; set; }
 
-        public MonoMod.MonoModder Modder { get; set; }
+        public ModFwModder Modder { get; set; }
+        public MarkdownDocumentor MarkdownDocumentor { get; set; }
 
         public ScriptManager(
             string scriptFolder,
-            MonoMod.MonoModder modder
+            ModFwModder modder
         )
         {
             ScriptFolder = scriptFolder;
             Modder = modder;
+        }
+
+        public ScriptManager SetMarkdownDocumentor(MarkdownDocumentor documentor)
+        {
+            MarkdownDocumentor = documentor;
+            return this;
+        }
+
+        public MarkdownDocumentor GetMarkdownDocumentor()
+        {
+            if (MarkdownDocumentor is not null)
+                return MarkdownDocumentor;
+
+            return Modder?.MarkdownDocumentor;
         }
 
         JSScript CreateScriptFromFile(string file, bool module)
