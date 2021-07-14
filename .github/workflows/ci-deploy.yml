@@ -31,18 +31,22 @@ jobs:
       with:
         PROJECT_FILE_PATH: ModFramework/ModFramework.csproj
         NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+        VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
     - name: Push ModFramework.Modules.CSharp
       uses: rohith/publish-nuget@v2
       with:
         PROJECT_FILE_PATH: ModFramework.Modules.CSharp/ModFramework.Modules.CSharp.csproj
         NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+        VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
     - name: Push ModFramework.Modules.ClearScript
       uses: rohith/publish-nuget@v2
       with:
         PROJECT_FILE_PATH: ModFramework.Modules.ClearScript/ModFramework.Modules.ClearScript.csproj
         NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+        VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
     - name: Push ModFramework.Modules.Lua
       uses: rohith/publish-nuget@v2
       with:
         PROJECT_FILE_PATH: ModFramework.Modules.Lua/ModFramework.Modules.Lua.csproj
         NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+        VERSION_REGEX: ^\s*<PackageVersion>(.*)<\/PackageVersion>\s*$
