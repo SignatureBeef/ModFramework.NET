@@ -100,8 +100,8 @@ namespace ModFramework.Modules.CSharp
                 }
             }
         }
-
-       public  class CreateContextOptions
+        
+        public class CreateContextOptions
         {
             public MetaData Meta { get; set; }
             public string AssemblyName { get; set; }
@@ -118,7 +118,7 @@ namespace ModFramework.Modules.CSharp
             public IEnumerable<string> CoreLibAssemblies { get; set; }
             public CompilationContext Context { get; set; }
         }
-        public event EventHandler<CompilationContextArgs> OnCompilationContext;
+        public static event EventHandler<CompilationContextArgs> OnCompilationContext;
 
         CompilationContext CreateContext(CreateContextOptions options)
         {
@@ -197,6 +197,10 @@ namespace ModFramework.Modules.CSharp
                     PdbPath = outPdbPath,
                     XmlPath = outXmlPath,
                     CompilationFiles = options.CompilationFiles,
+                    ModificationParams = new []
+                    {
+                        this,
+                    },
                 }
             };
 
@@ -371,6 +375,7 @@ namespace ModFramework.Modules.CSharp
             public string XmlPath { get; set; }
             public string PdbPath { get; set; }
             public IEnumerable<CompilationFile> CompilationFiles { get; set; }
+            public IEnumerable<object> ModificationParams { get; set; }
 
             public EmitResult Compile()
             {
@@ -416,20 +421,18 @@ namespace ModFramework.Modules.CSharp
 
                     if (Modder != null)
                         Modder.ReadMod(ctx.DllPath);
-                    else Modifier.Apply(ModType.Runtime, null, new[] { asm }); // relay on the runtime hook
+                    else Modifier.Apply(ModType.Runtime, null, new[] { asm }, optionalParams: ctx.ModificationParams); // relay on the runtime hook
                 }
             }
             else
             {
-                //Console.WriteLine($"Compilation errors for file: {Path.GetFileName(file)}");
-
+                var error = new System.Text.StringBuilder();
                 foreach (var diagnostic in compilationResult.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error))
                 {
-                    //Console.Error.WriteLine("{0}: {1}", diagnostic.Id, diagnostic.GetMessage());
-                    Console.Error.WriteLine(diagnostic.ToString());
+                    error.AppendLine(diagnostic.ToString());
                 }
 
-                throw new Exception($"Compilation errors above for file: {errorName}");
+                throw new Exception($"{error}\nCompilation errors above for file: {errorName}");
             }
         }
 

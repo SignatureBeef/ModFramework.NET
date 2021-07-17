@@ -65,11 +65,11 @@ namespace ModFramework
         }
 
         /* mainly to expose an Apply function without the need of MonoMod */
-        public static void Apply(ModType modType) => Apply(modType, null, null);
-        public static void Apply(ModType modType, IEnumerable<Assembly> assemblies) => Apply(modType, null, assemblies);
-        public static void Apply(ModType modType, MonoMod.MonoModder modder) => Apply(modType, modder, null);
+        public static void Apply(ModType modType, IEnumerable<object> optionalParams = null) => Apply(modType, null, null, optionalParams);
+        public static void Apply(ModType modType, IEnumerable<Assembly> assemblies, IEnumerable<object> optionalParams = null) => Apply(modType, null, assemblies, optionalParams);
+        public static void Apply(ModType modType, MonoMod.MonoModder modder, IEnumerable<object> optionalParams = null) => Apply(modType, modder, null, optionalParams);
 
-        public static void Apply(ModType modType, MonoMod.MonoModder modder, IEnumerable<Assembly> assemblies)
+        public static void Apply(ModType modType, MonoMod.MonoModder modder, IEnumerable<Assembly> assemblies, IEnumerable<object> optionalParams = null)
         {
             Console.WriteLine($"[ModFw:{modType}] Applying mods...");
             var availableParameters = new List<object>()
@@ -78,6 +78,7 @@ namespace ModFramework
             };
 
             if (modder != null) availableParameters.Add(modder);
+            if (optionalParams != null) availableParameters.AddRange(optionalParams);
 
             var modifications = ModificationAttribute
                 .Discover(assemblies ?? PluginLoader.Assemblies)
