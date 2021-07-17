@@ -101,7 +101,7 @@ namespace ModFramework.Modules.CSharp
             }
         }
 
-        class CreateContextOptions
+       public  class CreateContextOptions
         {
             public MetaData Meta { get; set; }
             public string AssemblyName { get; set; }
@@ -112,6 +112,13 @@ namespace ModFramework.Modules.CSharp
             public IEnumerable<string> OutAsmPath { get; set; }
             public IEnumerable<string> OutPdbPath { get; set; }
         }
+
+        public class CompilationContextArgs : EventArgs
+        {
+            public IEnumerable<string> CoreLibAssemblies { get; set; }
+            public CompilationContext Context { get; set; }
+        }
+        public event EventHandler<CompilationContextArgs> OnCompilationContext;
 
         CompilationContext CreateContext(CreateContextOptions options)
         {
@@ -175,22 +182,30 @@ namespace ModFramework.Modules.CSharp
                 pdbFilePath: outPdbPath
             );
 
-            return new CompilationContext()
+            var args = new CompilationContextArgs()
             {
-                Compilation = compilation,
-                EmitOptions = emitOptions,
-                CompilationOptions = compile_options,
-                DllStream = dllStream,
-                PdbStream = pdbStream,
-                XmlStream = xmlStream,
-                DllPath = outAsmPath,
-                PdbPath = outPdbPath,
-                XmlPath = outXmlPath,
-                CompilationFiles = options.CompilationFiles,
+                CoreLibAssemblies = libs,
+                Context = new CompilationContext()
+                {
+                    Compilation = compilation,
+                    EmitOptions = emitOptions,
+                    CompilationOptions = compile_options,
+                    DllStream = dllStream,
+                    PdbStream = pdbStream,
+                    XmlStream = xmlStream,
+                    DllPath = outAsmPath,
+                    PdbPath = outPdbPath,
+                    XmlPath = outXmlPath,
+                    CompilationFiles = options.CompilationFiles,
+                }
             };
+
+            OnCompilationContext?.Invoke(this, args);
+
+            return args.Context;
         }
 
-        class CompilationFile
+        public class CompilationFile
         {
             public string File { get; set; }
             public SyntaxTree SyntaxTree { get; set; }
@@ -344,7 +359,7 @@ namespace ModFramework.Modules.CSharp
             }
         }
 
-        class CompilationContext : IDisposable
+        public class CompilationContext : IDisposable
         {
             public CSharpCompilation Compilation { get; set; }
             public EmitOptions EmitOptions { get; set; }
