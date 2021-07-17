@@ -100,7 +100,7 @@ namespace ModFramework.Modules.CSharp
                 }
             }
         }
-        
+
         public class CreateContextOptions
         {
             public MetaData Meta { get; set; }
@@ -197,7 +197,7 @@ namespace ModFramework.Modules.CSharp
                     PdbPath = outPdbPath,
                     XmlPath = outXmlPath,
                     CompilationFiles = options.CompilationFiles,
-                    ModificationParams = new []
+                    ModificationParams = new[]
                     {
                         this,
                     },
@@ -333,6 +333,19 @@ namespace ModFramework.Modules.CSharp
 
         IEnumerable<CompilationFile> PrepareFiles(IEnumerable<string> files, IEnumerable<string> constants, string type)
         {
+            var items = ParseFiles(files, constants, type);
+            foreach (var item in items)
+            {
+                if (GetMarkdownDocumentor() is not null)
+                {
+                    ProcessXmlSyntax(item.File, type, item.SyntaxTree);
+                }
+            }
+            return items;
+        }
+
+        public static IEnumerable<CompilationFile> ParseFiles(IEnumerable<string> files, IEnumerable<string> constants, string type)
+        {
             foreach (var file in files)
             {
                 var folder = Path.GetFileName(Path.GetDirectoryName(file));
@@ -348,11 +361,6 @@ namespace ModFramework.Modules.CSharp
                 var source = SourceText.From(src, encoding);
                 var encoded = CSharpSyntaxTree.ParseText(source, parse_options, file);
                 var embedded = EmbeddedText.FromSource(file, source);
-
-                if (GetMarkdownDocumentor() is not null)
-                {
-                    ProcessXmlSyntax(file, type, encoded);
-                }
 
                 yield return new CompilationFile()
                 {
