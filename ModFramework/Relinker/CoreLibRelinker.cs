@@ -264,13 +264,13 @@ namespace ModFramework.Relinker
                     if (systemMatch is not null)
                         return systemMatch;
 
-                    throw new MissingMemberException();
+                    throw new Exception("$Relink failed. Unable to handle {type.FullName}");
                 }
-                else throw new NotImplementedException();
+                else throw new Exception($"{type.Scope.GetType().FullName} is not handled.");
             }
 
             if (res.Name == "mscorlib" || res.Name == "System.Private.CoreLib")
-                throw new NotSupportedException();
+                throw new Exception($"Relink failed, must not be corelib");
 
             return res;
         }
