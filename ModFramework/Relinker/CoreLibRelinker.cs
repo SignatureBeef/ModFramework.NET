@@ -264,7 +264,7 @@ namespace ModFramework.Relinker
                     if (systemMatch is not null)
                         return systemMatch;
 
-                    throw new Exception("$Relink failed. Unable to handle {type.FullName}");
+                    throw new Exception($"Relink failed. Unable to handle {type.FullName}");
                 }
                 else throw new Exception($"{type.Scope.GetType().FullName} is not handled.");
             }
