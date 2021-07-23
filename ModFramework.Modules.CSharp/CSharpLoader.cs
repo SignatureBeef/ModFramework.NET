@@ -78,9 +78,7 @@ namespace ModFramework.Modules.CSharp
 
         IEnumerable<MetadataReference> LoadExternalRefs(string path)
         {
-            var refs_path = Path.Combine(path, "Metadata.refs");
-
-            if (File.Exists(refs_path))
+            foreach (var refs_path in Directory.GetFiles(path, "*.refs"))
             {
                 var refs = File.ReadLines(refs_path);
 

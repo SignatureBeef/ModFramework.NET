@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFrameworks>net5.0;net472</TargetFrameworks>
 		<!--<OutputType>Exe</OutputType>-->
-		<PackageVersion>1.0.5-alpha</PackageVersion>
+		<PackageVersion>1.0.6-alpha</PackageVersion>
 		<Authors>DeathCradle</Authors>
 		<Copyright>DeathCradle</Copyright>
 		<PackageId>ModFramework.Modules.ClearScript</PackageId>
