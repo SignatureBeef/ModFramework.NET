@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+using System.Reflection;
+
 namespace ModFramework.Modules.CSharp
 {
     [MonoMod.MonoModIgnore]
@@ -25,13 +27,17 @@ namespace ModFramework.Modules.CSharp
         [Modification(ModType.Read, "Loading CSharp script interface")]
         public static void OnModding(ModFwModder modder)
         {
-            new CSharpLoader().SetModder(modder).LoadModifications();
+            new CSharpLoader()
+                .SetModder(modder)
+                .LoadModifications();
         }
 
         [Modification(ModType.Runtime, "Loading CSharp script interface")]
-        public static void OnRunning()
+        public static void OnRunning(Assembly terraria)
         {
-            new CSharpLoader().LoadModifications();
+            new CSharpLoader()
+                .AddConstants(terraria)
+                .LoadModifications();
         }
     }
 }
