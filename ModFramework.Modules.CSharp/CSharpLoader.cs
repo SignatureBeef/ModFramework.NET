@@ -76,12 +76,17 @@ namespace ModFramework.Modules.CSharp
             return this;
         }
 
+        public delegate bool ExternalRefFound(string filepath);
+        public event ExternalRefFound OnExternalRefFound;
+
         IEnumerable<MetadataReference> LoadExternalRefs(string path)
         {
             foreach (var refs_path in Directory.GetFiles(path, "*.refs"))
             {
-                var refs = File.ReadLines(refs_path);
+                if (OnExternalRefFound?.Invoke(refs_path) == false)
+                    continue;
 
+                var refs = File.ReadLines(refs_path);
                 var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
 
                 foreach (var ref_file in refs)
@@ -94,7 +99,7 @@ namespace ModFramework.Modules.CSharp
                     else if (File.Exists(sys_path))
                         yield return MetadataReference.CreateFromFile(sys_path);
 
-                    else throw new Exception($"Unable to resolve external reference: {ref_file} (Metadata.refs) in dir {Environment.CurrentDirectory}");
+                    else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFileName(refs_path)}) in dir {Environment.CurrentDirectory}");
                 }
             }
         }
@@ -514,6 +519,9 @@ namespace ModFramework.Modules.CSharp
 
                 foreach (var dir in moduleNames)
                 {
+                    if (AssemblyFound?.Invoke(dir) == false)
+                        continue; // event was cancelled, they do not wish to use this file. skip to the next.
+
                     var files = Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories)
                         .Where(file =>
                         {
