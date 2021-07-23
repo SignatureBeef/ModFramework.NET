@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFrameworks>net5.0;net472</TargetFrameworks>
 		<!--<OutputType>Exe</OutputType>-->
-		<PackageVersion>1.0.8-alpha</PackageVersion>
+		<PackageVersion>1.0.9-alpha</PackageVersion>
 		<Authors>DeathCradle</Authors>
 		<Copyright>DeathCradle</Copyright>
 		<PackageId>ModFramework.Modules.ClearScript</PackageId>
@@ -23,10 +23,10 @@
 		<None Remove="Typings\" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.ClearScript" Version="7.1.4" />
-		<PackageReference Include="MonoMod" Version="21.6.21.1" />
-		<PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.1.4" />
-		<PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.1.4" />
+		<PackageReference Include="Microsoft.ClearScript" Version="7.1.5" />
+		<PackageReference Include="MonoMod" Version="21.7.22.3" />
+		<PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.1.5" />
+		<PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.1.5" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\ModFramework\ModFramework.csproj" />
