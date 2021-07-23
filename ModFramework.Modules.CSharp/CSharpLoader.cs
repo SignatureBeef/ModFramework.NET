@@ -551,7 +551,8 @@ namespace ModFramework.Modules.CSharp
             public string OutputDirectory { get; set; }
         }
 
-        public string RootDirectory => Path.Combine("csharp", "plugins");
+        public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp", "plugins");
+        public string RootDirectory { get; set; } = GlobalRootDirectory;
 
         public List<string> Constants { get; set; } = new List<string>();
 
