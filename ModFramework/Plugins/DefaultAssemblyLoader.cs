@@ -38,10 +38,11 @@ namespace ModFramework.Plugins
             //    return null;
             //};
 
-            return AssemblyLoadContext.Default.LoadFromAssemblyPath(path);
+            var content = File.ReadAllBytes(path);
+            return AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(content));
         }
 
-        public Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream symbols = null)
+        public Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream? symbols = null)
         {
             return AssemblyLoadContext.Default.LoadFromStream(assembly, symbols);
         }

@@ -35,30 +35,33 @@ namespace ModFramework.Modules.ClearScript.Typings
 
         public void AddAssembly(System.Reflection.Assembly assembly)
         {
-            Type[] types = null;
+            Type[]? types = null;
             try
             {
                 types = assembly.GetExportedTypes();
             }
             catch (ReflectionTypeLoadException rtle)
             {
-                types = rtle.Types;
+                types = rtle.Types.Where(t => t is not null).ToArray()!;
             }
 
-            var publicTypes = types.Where(t => t.IsPublic);
+            if (types != null)
+            {
+                var publicTypes = types.Where(t => t.IsPublic);
 
-            foreach (var type in publicTypes)
-                AddType(type);
+                foreach (var type in publicTypes)
+                    AddType(type);
+            }
         }
 
-        static string GetCommonName(Type type)
+        static string? GetCommonName(Type type)
         {
             var name = type.FullName;
-            var ix = name.LastIndexOf('`');
+            var ix = name?.LastIndexOf('`');
 
-            if(ix > -1)
+            if (ix != null && ix > -1)
             {
-                name = name.Substring(0, ix);
+                name = name!.Substring(0, ix.Value);
                 name += type.GetGenericArguments().Length.ToString();
             }
 
@@ -108,7 +111,7 @@ namespace ModFramework.Modules.ClearScript.Typings
 
                 foreach (var evt in type.GetEvents()) //BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
                 {
-                    if (evt.EventHandlerType != type)
+                    if (evt.EventHandlerType != type && evt.EventHandlerType is not null)
                     {
                         AddType(evt.EventHandlerType);
 
@@ -143,7 +146,7 @@ namespace ModFramework.Modules.ClearScript.Typings
                 {
                     // TODO: dispose managed state (managed objects)
                     this.Types.Clear();
-                    this.Types = null;
+                    //this.Types = null;
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer

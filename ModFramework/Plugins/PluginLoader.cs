@@ -28,16 +28,17 @@ namespace ModFramework.Plugins
 
     public static class PluginLoader
     {
-        private static List<Assembly> _assemblies;
+        private static List<Assembly>? _assemblies;
 
-        public static IEnumerable<Assembly> Assemblies => _assemblies;
+        public static IEnumerable<Assembly>? Assemblies => _assemblies;
 
-        public static IAssemblyLoader AssemblyLoader { get; set; }
+        public static IAssemblyLoader? AssemblyLoader { get; set; }
 
-        public static event AssemblyFoundHandler AssemblyFound;
+        public static event AssemblyFoundHandler? AssemblyFound;
 
         public static void AddAssembly(Assembly assembly)
         {
+            if (_assemblies is null) throw new Exception($"{nameof(Init)} was not called");
             _assemblies.Add(assembly);
         }
 
@@ -54,6 +55,8 @@ namespace ModFramework.Plugins
             if (_assemblies == null)
             {
                 Init();
+
+                if (_assemblies is null || AssemblyLoader is null) throw new Exception($"{nameof(Init)} was not called");
 
                 _assemblies.AddRange(new[] {
                     Assembly.GetExecutingAssembly(),

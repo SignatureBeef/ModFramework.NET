@@ -81,7 +81,7 @@ namespace ModFramework.Modules.ClearScript
         {
             var module_name = Clean(specifier);
 
-            if (cache.TryGetValue(module_name, out Document cached) && cached != null)
+            if (cache != null && cache.TryGetValue(module_name, out Document? cached) && cached != null)
             {
                 //var sw = new StreamReader(cached.Contents);
                 //var txt = sw.ReadToEnd();
@@ -113,8 +113,8 @@ namespace ModFramework.Modules.ClearScript
 
         public void Dispose()
         {
-            cache?.Clear();
-            cache = null;
+            cache.Clear();
+            //cache = null;
         }
     }
 }

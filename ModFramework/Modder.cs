@@ -20,7 +20,6 @@ using ModFramework.Relinker;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod;
-using MonoMod.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,10 +33,12 @@ namespace ModFramework
         protected List<RelinkTask> TaskList { get; set; } = new List<RelinkTask>();
         public IEnumerable<RelinkTask> Tasks => TaskList;
 
-        public event MonoMod.MethodRewriter OnRewritingMethod;
-        public event MonoMod.MethodBodyRewriter OnRewritingMethodBody;
+        public event MethodRewriter? OnRewritingMethod;
+        public event MethodBodyRewriter? OnRewritingMethodBody;
 
-        public MarkdownDocumentor MarkdownDocumentor { get; set; }
+        public MarkdownDocumentor? MarkdownDocumentor { get; set; }
+
+        public bool EnableWriteEvents { get; set; }
 
         public virtual void AddTask(RelinkTask task)
         {
@@ -88,10 +89,10 @@ namespace ModFramework
             // which lets some patches fail to relink due to an unimported module...which should be valid since
             // its the same assembly, but it's lost during ImportReference calls
             {
-                var cache =
-                        (this.AssemblyResolver as DefaultAssemblyResolver).GetType()
-                        .GetField("cache", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                        .GetValue(this.AssemblyResolver) as Dictionary<string, AssemblyDefinition>;
+                var cache = (Dictionary<string, AssemblyDefinition>)
+                        ((DefaultAssemblyResolver)this.AssemblyResolver).GetType()
+                        .GetField("cache", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                        .GetValue(this.AssemblyResolver)!;
                 cache.Add(this.Module.Assembly.FullName, this.Module.Assembly);
             }
 
@@ -147,66 +148,17 @@ namespace ModFramework
             }
         }
 
-        public void RelinkAssembly(string fromAssemblyName, ModuleDefinition toModule = null)
+        public void RelinkAssembly(string fromAssemblyName, ModuleDefinition? toModule = null)
         {
             this.RelinkModuleMap[fromAssemblyName] = toModule ?? this.Module;
         }
+
+        public override void Write(Stream? output = null, string? outputPath = null)
+        {
+            base.Write(output, outputPath);
+
+            if (EnableWriteEvents)
+                Modifier.Apply(ModType.Write, this);
+        }
     }
-
-    //public class MfwDefaultAssemblyResolver : DefaultAssemblyResolver
-    //{
-    //    IAssemblyResolver root;
-    //    ModFwModder modder;
-
-    //    public MfwDefaultAssemblyResolver(ModFwModder modder)
-    //    {
-    //        this.root = modder.AssemblyResolver;
-    //        this.modder = modder;
-    //    }
-
-    //    public override AssemblyDefinition Resolve(AssemblyNameReference name)
-    //    {
-    //        if (this.modder.Module.Assembly.FullName == name.FullName)
-    //        {
-    //            return this.modder.Module.Assembly;
-    //        }
-    //        return this.root.Resolve(name);
-    //    }
-
-    //    public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
-    //    {
-    //        return this.root.Resolve(name, parameters);
-    //    }
-    //}
-
-    //public class MfwMetadataResolver : MetadataResolver
-    //{
-
-    //    public MfwMetadataResolver(IAssemblyResolver assemblyResolver)
-    //        : base(assemblyResolver)
-    //    {
-    //    }
-
-    //    public override FieldDefinition Resolve(FieldReference field)
-    //    {
-    //        return base.Resolve(field);
-    //    }
-
-    //    public override MethodDefinition Resolve(MethodReference method)
-    //    {
-    //        return base.Resolve(method);
-    //    }
-
-    //    public override TypeDefinition Resolve(TypeReference type)
-    //    {
-    //        try
-    //        {
-    //            return base.Resolve(type);
-    //        }
-    //        catch(Exception ex)
-    //        {
-    //            return null;
-    //        }
-    //    }
-    //}
 }

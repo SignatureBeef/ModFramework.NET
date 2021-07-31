@@ -47,7 +47,7 @@ namespace ModFramework.Modules.ClearScript.Typings
 
         private string GetJsType(Type type, Type parent)
         {
-            string resolve()
+            string? resolve()
             {
                 if (this.Types.Contains(type)
                     && !type.IsGenericType
@@ -87,7 +87,7 @@ namespace ModFramework.Modules.ClearScript.Typings
             };
         }
 
-        static string GetAssemblyName(Type type) => type.Assembly.GetName().Name.Replace('.', '_');
+        static string? GetAssemblyName(Type type) => type.Assembly.GetName()?.Name?.Replace('.', '_');
 
         static string GetTypeName(Type type, Type parent)
         {
@@ -362,9 +362,13 @@ namespace ModFramework.Modules.ClearScript.Typings
                     if (methodEvent != null)
                     {
                         sb.Append("handler: (");
-                        var invoke = methodEvent.EventHandlerType.GetMethod("Invoke");
+                        if (methodEvent.EventHandlerType is null) throw new ArgumentNullException(nameof(methodEvent.EventHandlerType));
 
-                        WriteMethodParameters(methodEvent.EventHandlerType, invoke, sb, type);
+                        var invoke = methodEvent.EventHandlerType?.GetMethod("Invoke");
+
+                        if(invoke is null) throw new ArgumentNullException(nameof(invoke));
+
+                        WriteMethodParameters(methodEvent.EventHandlerType!, invoke, sb, type);
 
                         sb.Append(") => " + GetJsType(invoke.ReturnType, type));
 
@@ -471,14 +475,15 @@ namespace ModFramework.Modules.ClearScript.Typings
 
                     if (!WriteType(type, sub)) continue;
 
+                    if (String.IsNullOrWhiteSpace(type.Assembly.FullName)) throw new Exception("Invalid assembly name: " + type.Assembly.FullName);
 
-                    if (!assemblies.TryGetValue(type.Assembly.FullName, out Dictionary<string, StringBuilder> moduleInfo))
+                    if (!assemblies.TryGetValue(type.Assembly.FullName, out Dictionary<string, StringBuilder>? moduleInfo))
                     {
                         moduleInfo = new Dictionary<string, StringBuilder>();
                         assemblies.Add(type.Assembly.FullName, moduleInfo);
                     }
 
-                    if (!moduleInfo.TryGetValue(module ?? "", out StringBuilder sb))
+                    if (!moduleInfo.TryGetValue(module ?? "", out StringBuilder? sb))
                     {
                         sb = new StringBuilder();
                         moduleInfo.Add(module ?? "", sb);
@@ -507,6 +512,8 @@ namespace ModFramework.Modules.ClearScript.Typings
 
                 foreach (var module in assembly.Value)
                 {
+                    if (asm.Name is null) continue;
+
                     var moduleName = (String.IsNullOrWhiteSpace(module.Key)
                         ? asm.Name : (asm.Name + '.' + module.Key)
                     ).Replace('.', '_');

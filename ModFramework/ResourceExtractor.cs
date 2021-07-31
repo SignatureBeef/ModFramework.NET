@@ -27,7 +27,13 @@ namespace ModFramework
     {
         public string Extract(string inputFile)
         {
-            var extractionFolder = Path.Combine(Path.GetDirectoryName(inputFile), "EmbeddedResources");
+            if (string.IsNullOrEmpty(inputFile) || !File.Exists(inputFile)) throw new FileNotFoundException("Resource assembly was not found", inputFile);
+
+            var input = Path.GetDirectoryName(inputFile);
+
+            if (input is null) throw new DirectoryNotFoundException("Resource assembly parent directory was not found: " + (input ?? "<null>"));
+
+            var extractionFolder = Path.Combine(input, "EmbeddedResources");
             using (var asmms = new MemoryStream(File.ReadAllBytes(inputFile)))
             {
                 var def = AssemblyDefinition.ReadAssembly(asmms);
@@ -44,9 +50,9 @@ namespace ModFramework
                             if (resource.ResourceType == ResourceType.Embedded)
                             {
                                 var er = resource as EmbeddedResource;
-                                var data = er.GetResourceData();
+                                var data = er?.GetResourceData();
 
-                                if (data.Length > 2)
+                                if (data is not null && data.Length > 2)
                                 {
                                     bool is_pe = data.Take(2).SequenceEqual(new byte[] { 77, 90 }); // MZ
                                     if (is_pe)

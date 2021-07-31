@@ -16,6 +16,7 @@
 		<PackageReleaseNotes>A plugin for ModFramework that loads CSharp scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
     <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="3.10.0" />

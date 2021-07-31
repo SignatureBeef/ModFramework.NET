@@ -170,7 +170,7 @@ namespace ModFramework
 
     public class DefaultCollection<TItem> : ICollection<TItem>
     {
-        protected TItem[,] _items;
+        protected TItem[,]? _items;
 
         public int Width { get; set; }
         public int Height { get; set; }
@@ -190,11 +190,11 @@ namespace ModFramework
 
                 return _items[x, y];
             }
-            set => _items[x, y] = value;
+            set => _items![x, y] = value;
         }
 
         public delegate ICollection<TItem> CreateCollectionHandler(int width, int height, string source);
-        public static event CreateCollectionHandler OnCreateCollection;
+        public static event CreateCollectionHandler? OnCreateCollection;
 
         public static ICollection<TItem> CreateCollection(int width, int height, string source)
         {

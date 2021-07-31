@@ -53,6 +53,11 @@ namespace ModFramework
         /// Occurs when the patched binary has started
         /// </summary>
         Runtime,
+
+        /// <summary>
+        /// Occurs when the patched binary has been written to either a steam or file path.
+        /// </summary>
+        Write,
     }
 
     /// <summary>
@@ -105,29 +110,30 @@ namespace ModFramework
         /// <summary>
         /// What this modification needs to wait for in order to be executed
         /// </summary>
-        public string[] Dependencies { get; set; }
+        public string[]? Dependencies { get; set; }
 
         /// <summary>
         /// The unique name for this modification in order to determine the dependencies
         /// </summary>
-        public string UniqueName { get; set; }
+        public string? UniqueName { get; set; }
 
         public ModificationAttribute(ModType type, string description,
             ModPriority priority = ModPriority.Default,
-            string[] dependencies = null
+            string[]? dependencies = null
         )
         {
             this.Description = description;
             this.Type = type;
             this.Priority = priority;
+            this.Dependencies = dependencies;
         }
 
         //public Type InstanceType { get; set; }
 
-        public MethodBase MethodBase { get; set; }
-        public object Instance { get; set; }
+        public MethodBase? MethodBase { get; set; }
+        public object? Instance { get; set; }
 
-        public virtual MethodBase GetExecutionMethod() => MethodBase; // ?? InstanceType.GetConstructors().Single();
+        public virtual MethodBase? GetExecutionMethod() => MethodBase; // ?? InstanceType.GetConstructors().Single();
 
         public static IEnumerable<ModificationAttribute> Discover(IEnumerable<Assembly> assemblies)
         {
@@ -141,7 +147,7 @@ namespace ModFramework
                     }
                     catch (ReflectionTypeLoadException ex)
                     {
-                        types = ex.Types;
+                        types = ex.Types.Where(x => x is not null).ToArray()!;
                     }
 
                     var modificationTypes = types.Where(x => x != null); // && !x.IsAbstract);

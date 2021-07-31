@@ -28,13 +28,13 @@ namespace ModFramework.Modules.Lua
 
     class LuaScript : IDisposable
     {
-        public string FilePath { get; set; }
-        public string FileName { get; set; }
-        public NLua.Lua Container { get; set; }
-        public string Content { get; set; }
+        public string? FilePath { get; set; }
+        public string? FileName { get; set; }
+        public NLua.Lua? Container { get; set; }
+        public string? Content { get; set; }
 
-        public object[] LoadResult { get; set; }
-        public object LoadError { get; set; }
+        public object[]? LoadResult { get; set; }
+        public object? LoadError { get; set; }
 
         public ScriptManager Manager { get; set; }
 
@@ -45,7 +45,7 @@ namespace ModFramework.Modules.Lua
 
         public void UnloadLua()
         {
-            var dispose = Container["Dispose"] as NLua.LuaFunction;
+            var dispose = Container?["Dispose"] as NLua.LuaFunction;
             if (dispose != null)
             {
                 dispose.Call();
@@ -66,6 +66,7 @@ namespace ModFramework.Modules.Lua
 
         public IEnumerable<string> GetComments()
         {
+            if (Content is null) throw new Exception($"{nameof(Content)} is null");
             return Content.Split('\n')
                 .Where(line => (line.Trim().StartsWith("-- @doc", StringComparison.CurrentCultureIgnoreCase)))
                 .Select(line => line.Replace("-- ", "").Trim());
@@ -73,6 +74,7 @@ namespace ModFramework.Modules.Lua
 
         void RegisterComments()
         {
+            if (FilePath is null) throw new Exception($"{nameof(FilePath)} is null");
             var doc = Manager.GetMarkdownDocumentor();
             if (doc is not null)
             {
@@ -94,6 +96,7 @@ namespace ModFramework.Modules.Lua
 
         public void Load()
         {
+            if (FilePath is null) throw new Exception($"{nameof(FilePath)} is null");
             try
             {
                 if (Container != null) UnloadLua();
@@ -130,18 +133,18 @@ namespace ModFramework.Modules.Lua
     {
         public string ScriptFolder { get; set; }
 
-        public static event FileFoundHandler FileFound;
+        public static event FileFoundHandler? FileFound;
 
         private List<LuaScript> _scripts { get; } = new List<LuaScript>();
-        private FileSystemWatcher _watcher { get; set; }
+        private FileSystemWatcher? _watcher { get; set; }
 
-        public ModFwModder Modder { get; set; }
+        public ModFwModder? Modder { get; set; }
 
-        public MarkdownDocumentor MarkdownDocumentor { get; set; }
+        public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
         public ScriptManager(
             string scriptFolder,
-            ModFwModder modder
+            ModFwModder? modder
         )
         {
             ScriptFolder = scriptFolder;
@@ -154,7 +157,7 @@ namespace ModFramework.Modules.Lua
             return this;
         }
 
-        public MarkdownDocumentor GetMarkdownDocumentor()
+        public MarkdownDocumentor? GetMarkdownDocumentor()
         {
             if (MarkdownDocumentor is not null)
                 return MarkdownDocumentor;
@@ -234,6 +237,8 @@ namespace ModFramework.Modules.Lua
 
             foreach (var s in _scripts)
             {
+                if (s.FileName is null) throw new Exception($"{nameof(s.FileName)} is null");
+
                 if (s.FileName.Equals(src))
                 {
                     s.FileName = dst;

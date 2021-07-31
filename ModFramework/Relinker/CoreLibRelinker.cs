@@ -29,20 +29,21 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public class SystemType
     {
-        public string FilePath { get; set; }
-        public AssemblyDefinition Assembly { get; set; }
-        public ExportedType Type { get; set; }
+        public string? FilePath { get; set; }
+        public AssemblyDefinition? Assembly { get; set; }
+        public ExportedType? Type { get; set; }
 
-        public AssemblyNameReference AsNameReference() => Assembly.AsNameReference();
+        public AssemblyNameReference? AsNameReference() => Assembly?.AsNameReference();
 
-        public override string ToString() => Type.ToString();
-
+        public override string ToString() => Type?.ToString() ?? "";
 
         public static IEnumerable<SystemType> SystemTypes { get; set; } = GetSystemType();
 
         static SystemType[] GetSystemType()
         {
             var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
+
+            if (assemblyPath == null) return new SystemType[] { };
 
             var runtimeAssemblies = Directory.GetFiles(assemblyPath, "*.dll")
                 .Select(x =>
@@ -64,7 +65,7 @@ namespace ModFramework.Relinker
                 .Where(x => x != null);
 
             var forwardTypes = runtimeAssemblies.SelectMany(ra =>
-                ra.asm.MainModule.ExportedTypes
+                ra!.asm.MainModule.ExportedTypes
                     .Where(x => x.IsForwarder)
                     .Select(x => new SystemType()
                     {
@@ -99,17 +100,18 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public delegate AssemblyNameReference ResolveCoreLibHandler(TypeReference target);
 
+
     [MonoMod.MonoModIgnore]
     public class CoreLibRelinker : RelinkTask
     {
-        public event ResolveCoreLibHandler Resolve;
+        public event ResolveCoreLibHandler? Resolve;
 
         public static void PostProcessCoreLib(params string[] inputs)
         {
             PostProcessCoreLib(null, inputs);
         }
 
-        public static void PostProcessCoreLib(CoreLibRelinker task, params string[] inputs)
+        public static void PostProcessCoreLib(CoreLibRelinker? task, params string[] inputs)
         {
             foreach (var input in inputs)
             {
@@ -143,6 +145,7 @@ namespace ModFramework.Relinker
 
         void PatchTargetFramework()
         {
+            if(Modder is null) throw new ArgumentNullException(nameof(Modder));
             var tfa = Modder.Module.Assembly.CustomAttributes.SingleOrDefault(ca =>
                 ca.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
 
@@ -166,6 +169,7 @@ namespace ModFramework.Relinker
 
             PatchTargetFramework();
 
+            if (Modder is null) throw new ArgumentNullException(nameof(Modder));
             FixAttributes(Modder.Module.Assembly.CustomAttributes);
             FixAttributes(Modder.Module.Assembly.MainModule.CustomAttributes);
 
@@ -184,21 +188,21 @@ namespace ModFramework.Relinker
             }
         }
 
-        AssemblyNameReference ResolveSystemType(TypeReference type)
+        AssemblyNameReference? ResolveSystemType(TypeReference type)
         {
             var searchType = type.FullName;
 
             var matches = SystemType.SystemTypes
-                .Where(x => x.Type.FullName == searchType
-                    && x.Assembly.Name.Name != "mscorlib"
-                    && x.Assembly.Name.Name != "System.Private.CoreLib"
+                .Where(x => x.Type?.FullName == searchType
+                    && x.Assembly?.Name?.Name != "mscorlib"
+                    && x.Assembly?.Name?.Name != "System.Private.CoreLib"
                 )
                 // pick the assembly with the highest version.
                 // TODO: consider if this will ever need to target other fw's
-                .OrderByDescending(x => x.Assembly.Name.Version);
+                .OrderByDescending(x => x.Assembly?.Name?.Version);
             var match = matches.FirstOrDefault();
 
-            if (match is not null)
+            if (match is not null && match.FilePath is not null)
             {
                 // this is only needed for ilspy to pick up .net5 libs on osx
                 var filename = Path.GetFileName(match.FilePath);
@@ -210,8 +214,9 @@ namespace ModFramework.Relinker
             return null;
         }
 
-        AssemblyNameReference ResolveDependency(TypeReference type)
+        AssemblyNameReference? ResolveDependency(TypeReference type)
         {
+            if (Modder is null) throw new ArgumentNullException(nameof(Modder));
             var depds = Modder.DependencyCache.Values
                 .Select(m => new
                 {
@@ -235,12 +240,12 @@ namespace ModFramework.Relinker
             return null;
         }
 
-        AssemblyNameReference ResolveRedirection(TypeReference type)
+        AssemblyNameReference? ResolveRedirection(TypeReference type)
         {
-            foreach (var mod in Modder.Mods)
-            {
+            //foreach (var mod in Modder.Mods)
+            //{
 
-            }
+            //}
 
             return null;
         }

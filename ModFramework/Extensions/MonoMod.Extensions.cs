@@ -28,7 +28,7 @@ namespace ModFramework
     [MonoMod.MonoModIgnore]
     public static class MonoModExtensions
     {
-        public static void RelinkAssembly(this MonoMod.MonoModder modder, ModuleDefinition source, ModuleDefinition target = null)
+        public static void RelinkAssembly(this MonoMod.MonoModder modder, ModuleDefinition source, ModuleDefinition? target = null)
         {
             if (target is null) target = modder.Module;
 

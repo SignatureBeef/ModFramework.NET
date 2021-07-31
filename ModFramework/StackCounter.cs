@@ -147,17 +147,17 @@ namespace ModFramework
 
     public class ILCount
     {
-        public Instruction Ins { get; set; }
+        public Instruction? Ins { get; set; }
         public int OnStackBefore { get; set; }
         public int OnStackAfter { get; set; }
-        public ILCount Previous { get; set; }
-        public ILCount Next { get; set; }
+        public ILCount? Previous { get; set; }
+        public ILCount? Next { get; set; }
 
         public ILCount FindCallStart()
         {
             //var ctx = FindRoot();
 
-            var method = Ins.Operand as MethodReference;
+            var method = Ins?.Operand as MethodReference;
 
             if (method is null)
                 throw new Exception($"Expected the current operand to be a method reference");
@@ -175,7 +175,7 @@ namespace ModFramework
 
             if (offset < 0)
             {
-                var pop = this.Ins.OpCode.StackBehaviourPop;
+                var pop = this.Ins!.OpCode.StackBehaviourPop;
                 var push = this.Ins.OpCode.StackBehaviourPush;
                 var aasdasd1 = this.Ins.GetStackBehaviourElements(pop);
                 var aasdasd2 = this.Ins.GetStackBehaviourElements(push);
@@ -197,7 +197,10 @@ namespace ModFramework
         public ILCount FindPrevious(Func<ILCount, bool> condition)
         {
             var offset = this.Previous;
-            while (!condition(offset) && offset != null)
+
+            if (offset is null) throw new Exception("No previous instruction");
+
+            while (!condition(offset!) && offset != null)
             {
                 offset = offset.Previous;
             }

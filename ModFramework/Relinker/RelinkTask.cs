@@ -26,8 +26,8 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public abstract class RelinkTask
     {
-        public MonoModder Modder { get; set; }
-        public IRelinkProvider RelinkProvider { get; set; }
+        public MonoModder? Modder { get; set; }
+        public IRelinkProvider? RelinkProvider { get; set; }
         public virtual int Order { get; set; } = 100;
 
         public virtual void Registered() { }

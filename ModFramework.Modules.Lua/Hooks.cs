@@ -24,7 +24,7 @@ namespace ModFramework.Modules.Lua
 {
     public static class Hooks
     {
-        public static ScriptManager ScriptManager { get; set; }
+        public static ScriptManager? ScriptManager { get; set; }
 
         [Modification(ModType.Runtime, "Loading Lua script interface")]
         public static void OnRunning()
@@ -38,7 +38,7 @@ namespace ModFramework.Modules.Lua
             Launch(modder);
         }
 
-        static void Launch(ModFwModder modder = null)
+        static void Launch(ModFwModder? modder = null)
         {
             const string root = "lua";
             Directory.CreateDirectory(root);

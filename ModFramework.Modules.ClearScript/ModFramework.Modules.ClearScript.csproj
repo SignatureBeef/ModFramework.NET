@@ -14,6 +14,7 @@
 		<Title>ModFramework ClearScript</Title>
 		<Description>ModFramework module to enable javascript plugins via Microsoft's ClearScript.</Description>
     <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
 	  <WarningLevel>4</WarningLevel>

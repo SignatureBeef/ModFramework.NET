@@ -15,6 +15,7 @@
 		<Description>A tool for rewriting .net binaries. Can allow rewriting of Types to Interfaces, Arrays to Extensible Collections, or even Fields to Properties.</Description>
 		<PackageReleaseNotes>Initial alpha version of the ModFramework.</PackageReleaseNotes>
     <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MonoMod" Version="21.7.22.3" />

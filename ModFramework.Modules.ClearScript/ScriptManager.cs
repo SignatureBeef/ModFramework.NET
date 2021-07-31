@@ -43,15 +43,15 @@ namespace ModFramework.Modules.ClearScript
 
     class JSScript : IDisposable
     {
-        public string FilePath { get; set; }
-        public string FileName { get; set; }
-        public V8ScriptEngine Container { get; set; }
-        public V8Script Script { get; set; }
-        public string Content { get; set; }
-        public ModuleResolver ModuleResolver { get; set; }
+        public string? FilePath { get; set; }
+        public string? FileName { get; set; }
+        public V8ScriptEngine? Container { get; set; }
+        public V8Script? Script { get; set; }
+        public string? Content { get; set; }
+        public ModuleResolver? ModuleResolver { get; set; }
 
-        public object LoadResult { get; set; }
-        public object LoadError { get; set; }
+        public object? LoadResult { get; set; }
+        public object? LoadError { get; set; }
 
         public ScriptManager Manager { get; set; }
         public bool IsModule { get; set; }
@@ -71,6 +71,7 @@ namespace ModFramework.Modules.ClearScript
 
         public IEnumerable<string> GetComments()
         {
+            if (Content is null) throw new ArgumentNullException(nameof(Content));
             return Content.Split('\n')
                 .Where(line => (line.Trim().StartsWith("// @doc", StringComparison.CurrentCultureIgnoreCase)))
                 .Select(v => v.Replace("// ", "").Trim());
@@ -119,7 +120,7 @@ namespace ModFramework.Modules.ClearScript
             {
                 if (Container != null) Unload();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine("[JS] Unload failed");
                 Console.WriteLine(ex);
@@ -133,11 +134,15 @@ namespace ModFramework.Modules.ClearScript
                 ModuleResolver?.Dispose();
                 ModuleResolver = null;
 
+                if (FilePath is null || !File.Exists(FilePath)) throw new FileNotFoundException("Failed to find script file", FilePath);
+
                 Content = File.ReadAllText(FilePath);
                 Container = new V8ScriptEngine();
 
                 Container.DocumentSettings.AccessFlags = DocumentAccessFlags.EnableFileLoading;
-                Container.DocumentSettings.SearchPath = Path.GetFullPath(Path.GetDirectoryName(FilePath));
+                var dirName = Path.GetDirectoryName(FilePath);
+                if (dirName is null) throw new DirectoryNotFoundException("Failed to find script directory:" + (dirName ?? "<null>"));
+                Container.DocumentSettings.SearchPath = Path.GetFullPath(dirName);
 
                 ModuleResolver = new ModuleResolver(Container, Container.DocumentSettings.Loader);
                 Container.DocumentSettings.Loader = ModuleResolver;
@@ -182,17 +187,17 @@ namespace ModFramework.Modules.ClearScript
     {
         public string ScriptFolder { get; set; }
 
-        public static event FileFoundHandler FileFound;
+        public static event FileFoundHandler? FileFound;
 
         private List<JSScript> _scripts { get; } = new List<JSScript>();
-        private FileSystemWatcher _watcher { get; set; }
+        private FileSystemWatcher? _watcher { get; set; }
 
-        public ModFwModder Modder { get; set; }
-        public MarkdownDocumentor MarkdownDocumentor { get; set; }
+        public ModFwModder? Modder { get; set; }
+        public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
         public ScriptManager(
             string scriptFolder,
-            ModFwModder modder
+            ModFwModder? modder
         )
         {
             ScriptFolder = scriptFolder;
@@ -205,7 +210,7 @@ namespace ModFramework.Modules.ClearScript
             return this;
         }
 
-        public MarkdownDocumentor GetMarkdownDocumentor()
+        public MarkdownDocumentor? GetMarkdownDocumentor()
         {
             if (MarkdownDocumentor is not null)
                 return MarkdownDocumentor;
@@ -244,7 +249,7 @@ namespace ModFramework.Modules.ClearScript
             var modules = Directory.GetDirectories(ScriptFolder);
             foreach (var modulePath in modules)
             {
-                if (Path.GetDirectoryName(modulePath).Equals("typings", StringComparison.CurrentCultureIgnoreCase))
+                if (Path.GetDirectoryName(modulePath)?.Equals("typings", StringComparison.CurrentCultureIgnoreCase) == true)
                     continue;
 
                 if (FileFound?.Invoke(modulePath) == false)
@@ -305,7 +310,7 @@ namespace ModFramework.Modules.ClearScript
 
             foreach (var s in _scripts)
             {
-                if (s.FileName.Equals(src))
+                if (s.FileName?.Equals(src) == true)
                 {
                     s.FileName = dst;
                     s.FilePath = e.FullPath;

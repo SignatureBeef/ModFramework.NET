@@ -41,13 +41,13 @@ namespace ModFramework.Modules.CSharp
         const string ConsolePrefix = "CSharp";
         const string ModulePrefix = "CSharpScript_";
 
-        public ModFwModder Modder { get; set; }
+        public ModFwModder? Modder { get; set; }
 
-        public static event AssemblyFoundHandler AssemblyFound;
+        public static event AssemblyFoundHandler? AssemblyFound;
         public static List<string> GlobalAssemblies { get; } = new List<string>();
 
         public bool AutoLoadAssemblies { get; set; } = true;
-        public MarkdownDocumentor MarkdownDocumentor { get; set; }
+        public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
         public CSharpLoader SetAutoLoadAssemblies(bool autoLoad)
         {
@@ -77,7 +77,7 @@ namespace ModFramework.Modules.CSharp
         }
 
         public delegate bool ExternalRefFound(string filepath);
-        public event ExternalRefFound OnExternalRefFound;
+        public event ExternalRefFound? OnExternalRefFound;
 
         IEnumerable<MetadataReference> LoadExternalRefs(string path)
         {
@@ -88,6 +88,8 @@ namespace ModFramework.Modules.CSharp
 
                 var refs = File.ReadLines(refs_path);
                 var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
+
+                if (assemblyPath is null) continue;
 
                 foreach (var ref_file in refs)
                 {
@@ -106,22 +108,22 @@ namespace ModFramework.Modules.CSharp
 
         public class CreateContextOptions
         {
-            public MetaData Meta { get; set; }
-            public string AssemblyName { get; set; }
-            public string OutDir { get; set; }
+            public MetaData? Meta { get; set; }
+            public string? AssemblyName { get; set; }
+            public string? OutDir { get; set; }
             public OutputKind OutputKind { get; set; }
-            public IEnumerable<CompilationFile> CompilationFiles { get; set; }
-            public IEnumerable<string> Constants { get; set; }
-            public IEnumerable<string> OutAsmPath { get; set; }
-            public IEnumerable<string> OutPdbPath { get; set; }
+            public IEnumerable<CompilationFile>? CompilationFiles { get; set; }
+            public IEnumerable<string>? Constants { get; set; }
+            public IEnumerable<string>? OutAsmPath { get; set; }
+            public IEnumerable<string>? OutPdbPath { get; set; }
         }
 
         public class CompilationContextArgs : EventArgs
         {
-            public IEnumerable<string> CoreLibAssemblies { get; set; }
-            public CompilationContext Context { get; set; }
+            public IEnumerable<string>? CoreLibAssemblies { get; set; }
+            public CompilationContext? Context { get; set; }
         }
-        public static event EventHandler<CompilationContextArgs> OnCompilationContext;
+        public static event EventHandler<CompilationContextArgs>? OnCompilationContext;
 
         CompilationContext CreateContext(CreateContextOptions options)
         {
@@ -135,6 +137,7 @@ namespace ModFramework.Modules.CSharp
 
             var assemblyName = ModulePrefix + options.AssemblyName;
 
+            if (options.OutDir is null) throw new Exception($"{nameof(options.OutDir)} is null");
             var outAsmPath = Path.Combine(options.OutDir, $"{assemblyName}.dll");
             var outPdbPath = Path.Combine(options.OutDir, $"{assemblyName}.pdb");
             var outXmlPath = Path.Combine(options.OutDir, $"{assemblyName}.xml");
@@ -147,16 +150,16 @@ namespace ModFramework.Modules.CSharp
                 .Select(asm => MetadataReference.CreateFromFile(asm))
                 .ToArray();
 
-            foreach (var mref in options.Meta.MetadataReferences
+            if (options.Meta?.MetadataReferences != null)
+                foreach (var mref in options.Meta.MetadataReferences
                     .Concat(GlobalAssemblies.Select(globalPath => MetadataReference.CreateFromFile(globalPath)))
-            //.Concat(referenceAssemblies)
-            )
-            {
-                if (!refs.Any(x => x.Display == mref.Display))
+                )
                 {
-                    refs.Add(mref);
+                    if (!refs.Any(x => x.Display == mref.Display))
+                    {
+                        refs.Add(mref);
+                    }
                 }
-            }
 
             //refs.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
 
@@ -165,20 +168,26 @@ namespace ModFramework.Modules.CSharp
                     .WithPlatform(Platform.AnyCpu)
                     .WithAllowUnsafe(true);
 
-            var syntaxTrees = options.CompilationFiles.Select(x => x.SyntaxTree);
+            var cf = options.CompilationFiles;
+            if (cf is null) throw new Exception($"{nameof(cf)} is null");
+            IEnumerable<SyntaxTree> syntaxTrees = (options.CompilationFiles?
+                .Where(x => x.SyntaxTree is not null)?
+                .Select(x => x.SyntaxTree!)
+            ) ?? Enumerable.Empty<SyntaxTree>();
 
             var compilation = CSharpCompilation
                 .Create(assemblyName, syntaxTrees, options: compile_options)
                 .AddReferences(refs)
             ;
 
-            var libs = ((String)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
-                .Split(Path.PathSeparator)
+            var libs = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
+                .Split(Path.PathSeparator)?
                 .Where(x => !x.StartsWith(Environment.CurrentDirectory));
-            foreach (var lib in libs)
-            {
-                compilation = compilation.AddReferences(MetadataReference.CreateFromFile(lib));
-            }
+            if (libs != null)
+                foreach (var lib in libs)
+                {
+                    compilation = compilation.AddReferences(MetadataReference.CreateFromFile(lib));
+                }
 
             var emitOptions = new EmitOptions(
                 debugInformationFormat: DebugInformationFormat.PortablePdb,
@@ -214,9 +223,9 @@ namespace ModFramework.Modules.CSharp
 
         public class CompilationFile
         {
-            public string File { get; set; }
-            public SyntaxTree SyntaxTree { get; set; }
-            public EmbeddedText EmbeddedText { get; set; }
+            public string? File { get; set; }
+            public SyntaxTree? SyntaxTree { get; set; }
+            public EmbeddedText? EmbeddedText { get; set; }
         }
 
         void ProcessXmlSyntax(string filePath, string type, SyntaxTree encoded)
@@ -238,7 +247,7 @@ namespace ModFramework.Modules.CSharp
             return this;
         }
 
-        MarkdownDocumentor GetMarkdownDocumentor()
+        MarkdownDocumentor? GetMarkdownDocumentor()
         {
             if (MarkdownDocumentor is not null)
                 return MarkdownDocumentor;
@@ -266,8 +275,8 @@ namespace ModFramework.Modules.CSharp
                                 var cleaned = String.Join(" ", comments.Trim().Split(Environment.NewLine));
                                 var doc = GetMarkdownDocumentor();
 
-                                if (!doc.Find<BasicComment>(r => r.FilePath == filePath && r.Comments == cleaned).Any())
-                                    GetMarkdownDocumentor().Add(new BasicComment()
+                                if (doc != null && !doc.Find<BasicComment>(r => r.FilePath == filePath && r.Comments == cleaned).Any())
+                                    doc.Add(new BasicComment()
                                     {
                                         Comments = String.Join(" ", comments.Trim().Split(Environment.NewLine)),
                                         Type = type,
@@ -339,7 +348,7 @@ namespace ModFramework.Modules.CSharp
             var items = ParseFiles(files, constants, type);
             foreach (var item in items)
             {
-                if (GetMarkdownDocumentor() is not null)
+                if (GetMarkdownDocumentor() is not null && item.File is not null && item.SyntaxTree is not null)
                 {
                     ProcessXmlSyntax(item.File, type, item.SyntaxTree);
                 }
@@ -376,25 +385,27 @@ namespace ModFramework.Modules.CSharp
 
         public class CompilationContext : IDisposable
         {
-            public CSharpCompilation Compilation { get; set; }
-            public EmitOptions EmitOptions { get; set; }
-            public CSharpCompilationOptions CompilationOptions { get; set; }
-            public MemoryStream DllStream { get; set; }
-            public MemoryStream PdbStream { get; set; }
-            public MemoryStream XmlStream { get; set; }
-            public string DllPath { get; set; }
-            public string XmlPath { get; set; }
-            public string PdbPath { get; set; }
-            public IEnumerable<CompilationFile> CompilationFiles { get; set; }
-            public IEnumerable<object> ModificationParams { get; set; }
+            public CSharpCompilation? Compilation { get; set; }
+            public EmitOptions? EmitOptions { get; set; }
+            public CSharpCompilationOptions? CompilationOptions { get; set; }
+            public MemoryStream? DllStream { get; set; }
+            public MemoryStream? PdbStream { get; set; }
+            public MemoryStream? XmlStream { get; set; }
+            public string? DllPath { get; set; }
+            public string? XmlPath { get; set; }
+            public string? PdbPath { get; set; }
+            public IEnumerable<CompilationFile>? CompilationFiles { get; set; }
+            public IEnumerable<object>? ModificationParams { get; set; }
 
             public EmitResult Compile()
             {
+                if (Compilation is null) throw new Exception($"{nameof(Compilation)} is null");
+                if (DllStream is null) throw new Exception($"{nameof(DllStream)} is null");
                 return Compilation.Emit(
                       peStream: DllStream,
                       pdbStream: PdbStream,
                       xmlDocumentationStream: XmlStream,
-                      embeddedTexts: CompilationFiles.Select(x => x.EmbeddedText),
+                      embeddedTexts: CompilationFiles?.Where(x => x.EmbeddedText is not null)?.Select(x => x.EmbeddedText!),
                       options: EmitOptions
                 );
             }
@@ -415,6 +426,13 @@ namespace ModFramework.Modules.CSharp
 
         void ProcessCompilation(string errorName, CompilationContext ctx, EmitResult compilationResult)
         {
+            if (ctx.DllStream is null) throw new Exception($"{nameof(ctx.DllStream)} is null");
+            if (ctx.PdbStream is null) throw new Exception($"{nameof(ctx.PdbStream)} is null");
+            if (ctx.XmlStream is null) throw new Exception($"{nameof(ctx.XmlStream)} is null");
+            if (ctx.DllPath is null) throw new Exception($"{nameof(ctx.DllPath)} is null");
+            if (ctx.PdbPath is null) throw new Exception($"{nameof(ctx.PdbPath)} is null");
+            if (ctx.XmlPath is null) throw new Exception($"{nameof(ctx.XmlPath)} is null");
+
             if (compilationResult.Success)
             {
                 ctx.DllStream.Seek(0, SeekOrigin.Begin);
@@ -427,6 +445,7 @@ namespace ModFramework.Modules.CSharp
 
                 if (AutoLoadAssemblies)
                 {
+                    if (PluginLoader.AssemblyLoader is null) throw new ArgumentNullException(nameof(PluginLoader.AssemblyLoader));
                     var asm = PluginLoader.AssemblyLoader.Load(ctx.DllStream, ctx.PdbStream);
                     PluginLoader.AddAssembly(asm);
 
@@ -447,11 +466,11 @@ namespace ModFramework.Modules.CSharp
             }
         }
 
-        string LoadScripts(MetaData meta, IEnumerable<string> files, OutputKind outputKind, string assemblyName, string type)
+        string? LoadScripts(MetaData meta, IEnumerable<string> files, OutputKind outputKind, string assemblyName, string type)
         {
             try
             {
-                var compilationFiles = PrepareFiles(files, meta.Constants, type);
+                var compilationFiles = PrepareFiles(files, meta.Constants ?? Enumerable.Empty<string>(), type);
 
                 using var ctx = CreateContext(new CreateContextOptions()
                 {
@@ -533,7 +552,7 @@ namespace ModFramework.Modules.CSharp
                         Console.WriteLine($"[{ConsolePrefix}] Loading module: {moduleName}");
                         var path = LoadScripts(meta, files, OutputKind.DynamicallyLinkedLibrary, moduleName, "module");
                         if (File.Exists(path))
-                            paths.Add(path);
+                            paths.Add(path!);
                     }
                     else
                     {
@@ -546,9 +565,9 @@ namespace ModFramework.Modules.CSharp
 
         public class MetaData
         {
-            public IEnumerable<string> Constants { get; set; }
-            public IEnumerable<MetadataReference> MetadataReferences { get; set; }
-            public string OutputDirectory { get; set; }
+            public IEnumerable<string>? Constants { get; set; }
+            public IEnumerable<MetadataReference>? MetadataReferences { get; set; }
+            public string? OutputDirectory { get; set; }
         }
 
         public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp", "plugins");
@@ -584,12 +603,15 @@ namespace ModFramework.Modules.CSharp
             }
         }
 
-        public CSharpLoader AddConstants(Assembly assembly)
+        public CSharpLoader AddConstants(params Assembly?[] assemblies)
         {
-            var constants = ReadConstants(assembly);
-            if (constants.Any())
+            foreach (var assembly in assemblies.Where(a => a is not null))
             {
-                AddConstants(constants);
+                var constants = ReadConstants(assembly!);
+                if (constants.Any())
+                {
+                    AddConstants(constants);
+                }
             }
             return this;
         }
@@ -612,7 +634,7 @@ namespace ModFramework.Modules.CSharp
 
             if (!String.IsNullOrWhiteSpace(json))
             {
-                constants = Newtonsoft.Json.JsonConvert.DeserializeObject<IEnumerable<string>>(json);
+                constants = Newtonsoft.Json.JsonConvert.DeserializeObject<IEnumerable<string>>(json) ?? constants;
             }
 
             return constants;
@@ -621,18 +643,17 @@ namespace ModFramework.Modules.CSharp
         /// <summary>
         /// Discovers .cs modifications or top-level scripts, compiles and registers them with MonoMod or ModFramework accordingly
         /// </summary>
-        public MetaData LoadModifications()
+        public MetaData? LoadModifications(string? moduleFolder = null)
         {
             if (Directory.Exists(RootDirectory))
             {
-                AddConstants(Assembly.GetCallingAssembly());
-                AddConstants(Assembly.GetEntryAssembly());
+                AddConstants(Assembly.GetCallingAssembly(), Assembly.GetEntryAssembly());
 
                 var meta = CreateMetaData();
 
                 LoadTopLevelScripts(meta);
                 LoadPatches(meta);
-                LoadModules(meta, "modules");
+                LoadModules(meta, moduleFolder ?? "modules");
                 PreserveConstants(meta);
                 return meta;
             }

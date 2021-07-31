@@ -32,11 +32,19 @@ namespace ModFramework.Modules.CSharp
                 .LoadModifications();
         }
 
-        [Modification(ModType.Runtime, "Loading CSharp script interface")]
-        public static void OnRunning(Assembly terraria)
+        [Modification(ModType.Write, "Compiling CSharp modules based on produced binary")]
+        public static void OnPatched()
         {
             new CSharpLoader()
-                .AddConstants(terraria)
+                .SetAutoLoadAssemblies(false)
+                .LoadModifications("modules-patched");
+        }
+
+        [Modification(ModType.Runtime, "Loading CSharp script interface")]
+        public static void OnRunning(Assembly runtimeAssembly)
+        {
+            new CSharpLoader()
+                .AddConstants(runtimeAssembly)
                 .LoadModifications();
         }
     }

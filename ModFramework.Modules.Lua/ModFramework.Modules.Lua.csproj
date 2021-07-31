@@ -16,6 +16,7 @@
 		<PackageReleaseNotes>A plugin for ModFramework that loads Lua scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
     <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
 	</ItemGroup>

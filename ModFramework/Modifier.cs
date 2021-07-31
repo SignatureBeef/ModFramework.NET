@@ -37,7 +37,7 @@ namespace ModFramework
             {
                 if (mod.Dependencies != null)
                 {
-                    return mod.Dependencies.ToDictionary(d => d, d => mods.Any(m => (m.MethodBase.DeclaringType.Name == d || (m.UniqueName != null && m.UniqueName == d)) && queue[m]));
+                    return mod.Dependencies.ToDictionary(d => d, d => mods.Any(m => (m.MethodBase?.DeclaringType?.Name == d || (m.UniqueName != null && m.UniqueName == d)) && queue[m]));
                 }
                 return emptyDeps;
             }
@@ -45,19 +45,19 @@ namespace ModFramework
             do
             {
                 var tasks = queue
-                    .Where(x => !x.Value)
+                    .Where(x => !x.Value && x.Key is not null)
                     .ToDictionary(k => k.Key, v => v.Value);
                 foreach (var pair in tasks)
                 {
-                    var deps = GetDependencyStatus(pair.Key);
+                    var deps = GetDependencyStatus(pair.Key!);
                     var not_ready = deps.Where(x => !x.Value);
                     var is_ready = !not_ready.Any();
                     if (is_ready)
                     {
-                        action(pair.Key);
-                        queue[pair.Key] = true;
+                        action(pair.Key!);
+                        queue[pair.Key!] = true;
                     }
-                    else Console.WriteLine($"[ModFw] Awaiting dependencies for {pair.Key.MethodBase.DeclaringType.FullName} ({pair.Key.Description}) needs: {String.Join(",", not_ready.Select(x => x.Key))}");
+                    else Console.WriteLine($"[ModFw] Awaiting dependencies for {pair.Key?.MethodBase?.DeclaringType?.FullName} ({pair.Key?.Description}) needs: {String.Join(",", not_ready.Select(x => x.Key))}");
                 }
 
                 complete = queue.All(x => x.Value);
@@ -65,11 +65,11 @@ namespace ModFramework
         }
 
         /* mainly to expose an Apply function without the need of MonoMod */
-        public static void Apply(ModType modType, IEnumerable<object> optionalParams = null) => Apply(modType, null, null, optionalParams);
-        public static void Apply(ModType modType, IEnumerable<Assembly> assemblies, IEnumerable<object> optionalParams = null) => Apply(modType, null, assemblies, optionalParams);
-        public static void Apply(ModType modType, MonoMod.MonoModder modder, IEnumerable<object> optionalParams = null) => Apply(modType, modder, null, optionalParams);
+        public static void Apply(ModType modType, IEnumerable<object>? optionalParams = null) => Apply(modType, null, null, optionalParams);
+        public static void Apply(ModType modType, IEnumerable<Assembly>? assemblies, IEnumerable<object>? optionalParams = null) => Apply(modType, null, assemblies, optionalParams);
+        public static void Apply(ModType modType, MonoMod.MonoModder? modder, IEnumerable<object>? optionalParams = null) => Apply(modType, modder, null, optionalParams);
 
-        public static void Apply(ModType modType, MonoMod.MonoModder modder, IEnumerable<Assembly> assemblies, IEnumerable<object> optionalParams = null)
+        public static void Apply(ModType modType, MonoMod.MonoModder? modder, IEnumerable<Assembly>? assemblies, IEnumerable<object>? optionalParams = null)
         {
             Console.WriteLine($"[ModFw:{modType}] Applying mods...");
             var availableParameters = new List<object>()
@@ -81,11 +81,12 @@ namespace ModFramework
             if (optionalParams != null) availableParameters.AddRange(optionalParams);
 
             var modifications = ModificationAttribute
-                .Discover(assemblies ?? PluginLoader.Assemblies)
+                .Discover(assemblies ?? PluginLoader.Assemblies ?? Enumerable.Empty<Assembly>())
                 .Where(x => x.Type == modType);
             IterateMods(modifications, (modification) =>
             {
                 Console.WriteLine($"[ModFw:{modType}] {modification.Description}");
+                if (modification?.MethodBase?.DeclaringType is null) throw new Exception($"Failed to determine ctor");
 
                 MethodBase modCtor = modification.MethodBase; //.DeclaringType.GetConstructors().Single();
                 var modCtorParams = modCtor.GetParameters();

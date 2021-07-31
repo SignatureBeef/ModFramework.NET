@@ -27,7 +27,7 @@ namespace ModFramework.Modules.ClearScript
     {
         public const string RootFolder = "clearscript";
 
-        public static ScriptManager ScriptManager { get; set; }
+        public static ScriptManager? ScriptManager { get; set; }
 
         [Modification(ModType.Runtime, "Loading ClearScript interface")]
         public static void OnRunning()
@@ -41,7 +41,7 @@ namespace ModFramework.Modules.ClearScript
             Launch(modder);
         }
 
-        static void Launch(ModFwModder modder = null)
+        static void Launch(ModFwModder? modder = null)
         {
             Directory.CreateDirectory(RootFolder);
 

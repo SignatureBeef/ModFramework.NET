@@ -85,6 +85,7 @@ namespace ModFramework
             if (memberReference is MethodReference methodReference)
             {
                 var module = token.GetModule();
+                if (module is null) throw new Exception($"Failed to resolve token module: {methodReference}");
                 methodReference.DeclaringType = module.GetType(methodReference.DeclaringType.FullName);
 
                 if (followRedirect)
@@ -102,7 +103,7 @@ namespace ModFramework
             return (TReturn)memberReference.Resolve();
         }
 
-        public static ModuleDefinition GetModule(this IMetadataTokenProvider token) => (token as ModuleDefinition) ?? (token as AssemblyDefinition)?.MainModule;
+        public static ModuleDefinition? GetModule(this IMetadataTokenProvider token) => (token as ModuleDefinition) ?? (token as AssemblyDefinition)?.MainModule;
 
         public static MemberReference GetMemberReference(this IMetadataTokenProvider token, LambdaExpression reference)
         {
@@ -179,17 +180,17 @@ namespace ModFramework
                 throw new NotSupportedException("Anonymous instruction expected 1 opcode property");
 
             //Get the opcode value
-            var opcode = (OpCode)propOpcode.GetMethod.Invoke(anon, null);
+            var opcode = (OpCode)propOpcode.GetMethod!.Invoke(anon, null)!;
 
             //Now determine if we need an operand or not
-            Instruction ins = null;
+            Instruction? ins = null;
             if (properties.Length == 2)
             {
                 //We know we already have the opcode determined, so the second property
                 //must be the operand.
                 var propOperand = properties.Where(x => x != propOpcode).Single();
 
-                var operand = propOperand.GetMethod.Invoke(anon, null);
+                var operand = propOperand.GetMethod!.Invoke(anon, null)!;
 
                 //Now find the Instruction.Create method that takes the same type that is 
                 //specified by the operands type.
@@ -213,7 +214,7 @@ namespace ModFramework
                 //Get the operand value and pass it to the Instruction.Create method to create
                 //the instruction.
                 //var operand = propOperand.GetMethod.Invoke(anon, null);
-                ins = (Instruction)instructionMethod.Method.Invoke(anon, new[] { opcode, operand });
+                ins = (Instruction)instructionMethod.Method.Invoke(anon, new[] { opcode, operand })!;
             }
             else
             {
@@ -270,7 +271,7 @@ namespace ModFramework
         }
 
 
-        public static Instruction Previous(this Instruction initial, Func<Instruction, Boolean> predicate)
+        public static Instruction? Previous(this Instruction initial, Func<Instruction, Boolean> predicate)
         {
             while (initial.Previous != null)
             {
@@ -281,7 +282,7 @@ namespace ModFramework
             return null;
         }
 
-        public static Instruction Next(this Instruction initial, Func<Instruction, Boolean> predicate)
+        public static Instruction? Next(this Instruction initial, Func<Instruction, Boolean> predicate)
         {
             while (initial.Next != null)
             {
@@ -344,7 +345,7 @@ namespace ModFramework
         /// </summary>
         public static Instruction EmitDefault(this MethodDefinition method)
         {
-            Instruction firstInstruction = null;
+            Instruction? firstInstruction = null;
 
             var il = method.Body.GetILProcessor();
 

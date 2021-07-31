@@ -28,9 +28,9 @@ namespace ModFramework.Relinker
         FieldDefinition Field { get; }
         PropertyDefinition Property { get; }
 
-        MethodReference getReference;
-        MethodReference setReference;
-        TypeReference returnTypeReference;
+        MethodReference? getReference;
+        MethodReference? setReference;
+        TypeReference? returnTypeReference;
 
         public FieldToPropertyRelinker(FieldDefinition field, PropertyDefinition property)
         {
@@ -74,16 +74,20 @@ namespace ModFramework.Relinker
 
                                 if (instr.OpCode == OpCodes.Ldfld || instr.OpCode == OpCodes.Ldsfld)
                                 {
+                                    if (this.getReference is null) throw new ArgumentNullException(nameof(this.getReference));
                                     instr.OpCode = OpCodes.Call;
                                     instr.Operand = ResolveReference(this.getReference);
                                 }
                                 else if (instr.OpCode == OpCodes.Stfld || instr.OpCode == OpCodes.Stsfld)
                                 {
+                                    if(this.setReference is null) throw new ArgumentNullException(nameof(this.setReference));   
                                     instr.OpCode = OpCodes.Call;
                                     instr.Operand = ResolveReference(this.setReference);
                                 }
                                 else if (instr.OpCode == OpCodes.Ldflda)
                                 {
+                                    if (this.getReference is null) throw new ArgumentNullException(nameof(this.getReference));
+                                    if (this.returnTypeReference is null) throw new ArgumentNullException(nameof(this.returnTypeReference));
                                     instr.OpCode = OpCodes.Call;
                                     instr.Operand = ResolveReference(this.getReference);
 
