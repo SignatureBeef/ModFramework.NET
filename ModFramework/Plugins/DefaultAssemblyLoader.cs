@@ -37,14 +37,19 @@ namespace ModFramework.Plugins
             //        return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
             //    return null;
             //};
-
             var content = File.ReadAllBytes(path);
-            return AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(content));
+
+            var path_symbols = Path.ChangeExtension(path, ".pdb");
+            if(File.Exists(path_symbols))
+            {
+                var symbols = File.ReadAllBytes(path_symbols);
+                return Load(new MemoryStream(content), new MemoryStream(symbols));
+            }
+
+            return Load(new MemoryStream(content));
         }
 
-        public Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream? symbols = null)
-        {
-            return AssemblyLoadContext.Default.LoadFromStream(assembly, symbols);
-        }
+        public Assembly Load(MemoryStream assembly, MemoryStream? symbols = null)
+            => AssemblyLoadContext.Default.LoadFromStream(assembly, symbols);
     }
 }

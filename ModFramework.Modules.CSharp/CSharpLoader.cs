@@ -28,7 +28,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Xml;
 
 namespace ModFramework.Modules.CSharp
 {
@@ -127,8 +126,6 @@ namespace ModFramework.Modules.CSharp
 
         CompilationContext CreateContext(CreateContextOptions options)
         {
-            var root = Path.Combine("csharp", "modifications");
-
             var assemblyPath = Path.GetDirectoryName(typeof(object).GetTypeInfo().Assembly.Location);
 
             var dllStream = new MemoryStream();
@@ -161,15 +158,13 @@ namespace ModFramework.Modules.CSharp
                     }
                 }
 
-            //refs.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
-
             var compile_options = new CSharpCompilationOptions(options.OutputKind)
                     .WithOptimizationLevel(OptimizationLevel.Debug)
                     .WithPlatform(Platform.AnyCpu)
                     .WithAllowUnsafe(true);
 
             var cf = options.CompilationFiles;
-            if (cf is null) throw new Exception($"{nameof(cf)} is null");
+            if (cf is null) throw new Exception($"{nameof(options.CompilationFiles)} is null");
             IEnumerable<SyntaxTree> syntaxTrees = (options.CompilationFiles?
                 .Where(x => x.SyntaxTree is not null)?
                 .Select(x => x.SyntaxTree!)
@@ -345,7 +340,7 @@ namespace ModFramework.Modules.CSharp
 
         IEnumerable<CompilationFile> PrepareFiles(IEnumerable<string> files, IEnumerable<string> constants, string type)
         {
-            var items = ParseFiles(files, constants, type);
+            var items = ParseFiles(files, constants);
             foreach (var item in items)
             {
                 if (GetMarkdownDocumentor() is not null && item.File is not null && item.SyntaxTree is not null)
@@ -356,7 +351,7 @@ namespace ModFramework.Modules.CSharp
             return items;
         }
 
-        public static IEnumerable<CompilationFile> ParseFiles(IEnumerable<string> files, IEnumerable<string> constants, string type)
+        public static IEnumerable<CompilationFile> ParseFiles(IEnumerable<string> files, IEnumerable<string> constants)
         {
             foreach (var file in files)
             {
@@ -385,6 +380,8 @@ namespace ModFramework.Modules.CSharp
 
         public class CompilationContext : IDisposable
         {
+            private bool disposedValue;
+
             public CSharpCompilation? Compilation { get; set; }
             public EmitOptions? EmitOptions { get; set; }
             public CSharpCompilationOptions? CompilationOptions { get; set; }
@@ -410,17 +407,42 @@ namespace ModFramework.Modules.CSharp
                 );
             }
 
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposedValue)
+                {
+                    if (disposing)
+                    {
+                        // TODO: dispose managed state (managed objects)
+                        Compilation = null;
+                        EmitOptions = null;
+                        //EmbeddedTexts = null;
+                        XmlStream?.Dispose();
+                        PdbStream?.Dispose();
+                        DllStream?.Dispose();
+                        DllPath = null;
+                        XmlPath = null;
+                        PdbPath = null;
+                    }
+
+                    // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                    // TODO: set large fields to null
+                    disposedValue = true;
+                }
+            }
+
+            // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+            // ~CompilationContext()
+            // {
+            //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            //     Dispose(disposing: false);
+            // }
+
             public void Dispose()
             {
-                Compilation = null;
-                EmitOptions = null;
-                //EmbeddedTexts = null;
-                XmlStream?.Dispose();
-                PdbStream?.Dispose();
-                DllStream?.Dispose();
-                DllPath = null;
-                XmlPath = null;
-                PdbPath = null;
+                // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+                Dispose(disposing: true);
+                GC.SuppressFinalize(this);
             }
         }
 
@@ -445,7 +467,7 @@ namespace ModFramework.Modules.CSharp
 
                 if (AutoLoadAssemblies)
                 {
-                    if (PluginLoader.AssemblyLoader is null) throw new ArgumentNullException(nameof(PluginLoader.AssemblyLoader));
+                    if (PluginLoader.AssemblyLoader is null) throw new Exception($"{nameof(PluginLoader.AssemblyLoader)} is null");
                     var asm = PluginLoader.AssemblyLoader.Load(ctx.DllStream, ctx.PdbStream);
                     PluginLoader.AddAssembly(asm);
 
@@ -516,14 +538,14 @@ namespace ModFramework.Modules.CSharp
 
         void LoadTopLevelScripts(MetaData meta)
         {
-            var toplevel = Path.Combine(RootDirectory, "toplevel");
+            var toplevel = Path.Combine(PluginsDirectory, "toplevel");
             if (Directory.Exists(toplevel))
                 LoadSingleScripts(meta, toplevel, OutputKind.ConsoleApplication, "toplevel");
         }
 
         void LoadPatches(MetaData meta)
         {
-            var patches = Path.Combine(RootDirectory, "patches");
+            var patches = Path.Combine(PluginsDirectory, "patches");
             if (Directory.Exists(patches))
                 LoadSingleScripts(meta, patches, OutputKind.DynamicallyLinkedLibrary, "patch");
         }
@@ -531,7 +553,7 @@ namespace ModFramework.Modules.CSharp
         public List<string> LoadModules(MetaData meta, string folder)
         {
             var paths = new List<string>();
-            var modules = Path.Combine(RootDirectory, folder);
+            var modules = Path.Combine(PluginsDirectory, folder);
             if (Directory.Exists(modules))
             {
                 var moduleNames = Directory.EnumerateDirectories(modules, "*", SearchOption.TopDirectoryOnly);
@@ -570,10 +592,13 @@ namespace ModFramework.Modules.CSharp
             public string? OutputDirectory { get; set; }
         }
 
-        public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp", "plugins");
-        public string RootDirectory { get; set; } = GlobalRootDirectory;
+        public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp");
+        public string PluginsDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "plugins");
+        public string GeneratedDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "generated");
 
         public List<string> Constants { get; set; } = new List<string>();
+
+        const string MetaDataKey = "Module.CSharp.Constants";
 
         public MetaData CreateMetaData()
         {
@@ -581,17 +606,16 @@ namespace ModFramework.Modules.CSharp
             var constants = File.Exists(constants_path)
                 ? File.ReadAllLines(constants_path) : Enumerable.Empty<string>(); // bring across the generated constants
 
-            var refs = LoadExternalRefs(RootDirectory).ToList();
+            var refs = LoadExternalRefs(PluginsDirectory).ToList();
 
-            var outDir = Path.Combine("csharp", "generated");
-            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
-            Directory.CreateDirectory(outDir);
+            if (Directory.Exists(GeneratedDirectory)) Directory.Delete(GeneratedDirectory, true);
+            Directory.CreateDirectory(GeneratedDirectory);
 
             return new MetaData()
             {
                 MetadataReferences = refs,
                 Constants = Constants.Concat(constants),
-                OutputDirectory = outDir,
+                OutputDirectory = GeneratedDirectory,
             };
         }
 
@@ -599,7 +623,7 @@ namespace ModFramework.Modules.CSharp
         {
             if (Modder is not null)
             {
-                Modder.AddMetadata("Module.CSharp.Constants", Newtonsoft.Json.JsonConvert.SerializeObject(meta.Constants));
+                Modder.AddMetadata(MetaDataKey, Newtonsoft.Json.JsonConvert.SerializeObject(meta.Constants));
             }
         }
 
@@ -629,7 +653,7 @@ namespace ModFramework.Modules.CSharp
             IEnumerable<string> constants = Enumerable.Empty<string>();
 
             var json = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-                .SingleOrDefault(x => x.Key == "Module.CSharp.Constants")
+                .SingleOrDefault(x => x.Key == MetaDataKey)
                 ?.Value;
 
             if (!String.IsNullOrWhiteSpace(json))
@@ -645,7 +669,7 @@ namespace ModFramework.Modules.CSharp
         /// </summary>
         public MetaData? LoadModifications(string? moduleFolder = null)
         {
-            if (Directory.Exists(RootDirectory))
+            if (Directory.Exists(PluginsDirectory))
             {
                 AddConstants(Assembly.GetCallingAssembly(), Assembly.GetEntryAssembly());
 

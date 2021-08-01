@@ -36,6 +36,8 @@ namespace ModFramework.Plugins
 
         public static event AssemblyFoundHandler? AssemblyFound;
 
+        public static string ModificationsDirectory { get; set; } = "modifications";
+
         public static void AddAssembly(Assembly assembly)
         {
             if (_assemblies is null) throw new Exception($"{nameof(Init)} was not called");
@@ -66,9 +68,9 @@ namespace ModFramework.Plugins
                 //IEnumerable<string> files = Directory.EnumerateFiles(Environment.CurrentDirectory, "*.mm.dll", SearchOption.AllDirectories);
 
                 IEnumerable<string> files = Enumerable.Empty<string>();
-                if (Directory.Exists("modifications"))
+                if (Directory.Exists(ModificationsDirectory))
                 {
-                    files = files.Concat(Directory.EnumerateFiles("modifications", "*.dll", SearchOption.AllDirectories));
+                    files = files.Concat(Directory.EnumerateFiles(ModificationsDirectory, "*.dll", SearchOption.AllDirectories));
                 }
 
                 foreach (var file in files.Distinct())
