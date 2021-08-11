@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>net5.0;net472</TargetFrameworks>
-		<PackageVersion>1.0.11-alpha</PackageVersion>
+		<PackageVersion>1.0.12-alpha</PackageVersion>
 		<PackageId>ModFramework</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -18,8 +18,8 @@
     <Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="MonoMod" Version="21.7.22.3" />
-		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="21.7.22.3" />
+		<PackageReference Include="MonoMod" Version="21.8.5.1" />
+		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="21.8.5.1" />
 		<PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">
