@@ -100,7 +100,7 @@ namespace ModFramework.Modules.CSharp
                     else if (File.Exists(sys_path))
                         yield return MetadataReference.CreateFromFile(sys_path);
 
-                    else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFileName(refs_path)}) in dir {Environment.CurrentDirectory}");
+                    else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFullPath(refs_path)})");
                 }
             }
         }
@@ -123,6 +123,9 @@ namespace ModFramework.Modules.CSharp
             public CompilationContext? Context { get; set; }
         }
         public static event EventHandler<CompilationContextArgs>? OnCompilationContext;
+
+        public static bool DefaultIncludeLocalSystemAssemblies { get; set; } = true;
+        public bool IncludeLocalSystemAssemblies { get; set; } = DefaultIncludeLocalSystemAssemblies;
 
         CompilationContext CreateContext(CreateContextOptions options)
         {
@@ -183,6 +186,22 @@ namespace ModFramework.Modules.CSharp
                 {
                     compilation = compilation.AddReferences(MetadataReference.CreateFromFile(lib));
                 }
+
+            if (IncludeLocalSystemAssemblies && libs is not null && libs.Count() == 0)
+            {
+                var asms = AppDomain.CurrentDomain.GetAssemblies();
+                foreach (var asm in asms.Where(x => !x.IsDynamic))
+                {
+                    if (!string.IsNullOrWhiteSpace(asm.Location) && File.Exists(asm.Location))
+                        compilation = compilation.AddReferences(MetadataReference.CreateFromFile(asm.Location));
+                }
+
+                foreach (var file in Directory.GetFiles(Environment.CurrentDirectory, "Syste*.dll"))
+                    compilation = compilation.AddReferences(MetadataReference.CreateFromFile(file));
+
+                compilation = compilation.AddReferences(MetadataReference.CreateFromFile("netstandard.dll"));
+                compilation = compilation.AddReferences(MetadataReference.CreateFromFile("mscorlib.dll"));
+            }
 
             var emitOptions = new EmitOptions(
                 debugInformationFormat: DebugInformationFormat.PortablePdb,
