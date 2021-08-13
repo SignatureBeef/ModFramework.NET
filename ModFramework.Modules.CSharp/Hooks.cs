@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+using System;
+using System.IO;
 using System.Reflection;
 
 namespace ModFramework.Modules.CSharp
@@ -46,6 +48,21 @@ namespace ModFramework.Modules.CSharp
             new CSharpLoader()
                 .AddConstants(runtimeAssembly)
                 .LoadModifications();
+
+            Launch();
+        }
+
+        static ScriptManager ScriptManager { get; set; } // prevent GC and issues with file watching
+        static void Launch(ModFwModder? modder = null)
+        {
+            var rootFolder = Path.Combine(Path.Combine(CSharpLoader.GlobalRootDirectory, "plugins", "scripts"));
+            Directory.CreateDirectory(rootFolder);
+
+            Console.WriteLine($"[CS] Loading CSharp scripts from ./{rootFolder}");
+
+            ScriptManager = new ScriptManager(rootFolder, modder);
+            ScriptManager.Initialise();
+            ScriptManager.WatchForChanges();
         }
     }
 }

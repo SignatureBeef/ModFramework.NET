@@ -48,7 +48,7 @@ namespace ModFramework.Modules.ClearScript
         protected V8ScriptEngine engine;
         protected DocumentLoader root;
 
-        private Dictionary<string, Document> cache = new Dictionary<string, Document>();
+        private Dictionary<string, Document> _cache = new Dictionary<string, Document>();
 
         public ModuleResolver(V8ScriptEngine engine, DocumentLoader root)
         {
@@ -56,17 +56,17 @@ namespace ModFramework.Modules.ClearScript
             this.root = root;
         }
 
-        public StringDocument AddDocument(string name, string code, DocumentCategory category)
+        public StringDocument AddDocument(string name, string code, DocumentCategory category, bool cache = true)
         {
             var doc = new StringDocument(new DocumentInfo(name) { Category = category }, code);
-            cache[name] = doc;
+            if (cache) _cache[name] = doc;
             return doc;
         }
 
         public void Unload(string name)
         {
-            if (cache.ContainsKey(name))
-                cache.Remove(name);
+            if (_cache.ContainsKey(name))
+                _cache.Remove(name);
         }
 
         const string Prefix_AddHostObject = "AddHostObject-";
@@ -81,7 +81,7 @@ namespace ModFramework.Modules.ClearScript
         {
             var module_name = Clean(specifier);
 
-            if (cache != null && cache.TryGetValue(module_name, out Document? cached) && cached != null)
+            if (_cache != null && _cache.TryGetValue(module_name, out Document? cached) && _cache != null)
             {
                 //var sw = new StreamReader(cached.Contents);
                 //var txt = sw.ReadToEnd();
@@ -92,14 +92,14 @@ namespace ModFramework.Modules.ClearScript
             {
                 var csv = specifier.Substring(Prefix_AddHostObject.Length);
                 engine.AddHostObject(module_name, new HostTypeCollection(csv.Split(',')));
-                return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category));
+                return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category, cache: false));
             }
 
             if (specifier.StartsWith(Prefix_AddHostType, StringComparison.CurrentCultureIgnoreCase))
             {
                 var type = specifier.Substring(Prefix_AddHostType.Length);
                 engine.AddHostType(module_name, type);
-                return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category));
+                return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category, cache: false));
             }
 
             return root.LoadDocumentAsync(settings, sourceInfo, specifier, category, contextCallback);
@@ -108,12 +108,12 @@ namespace ModFramework.Modules.ClearScript
         public override void DiscardCachedDocuments()
         {
             base.DiscardCachedDocuments();
-            cache.Clear();
+            _cache.Clear();
         }
 
         public void Dispose()
         {
-            cache.Clear();
+            _cache.Clear();
             //cache = null;
         }
     }

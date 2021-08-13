@@ -137,7 +137,7 @@ namespace ModFramework.Modules.ClearScript
                 if (FilePath is null || !File.Exists(FilePath)) throw new FileNotFoundException("Failed to find script file", FilePath);
 
                 Content = File.ReadAllText(FilePath);
-                Container = new V8ScriptEngine();
+                Container = new V8ScriptEngine(V8ScriptEngineFlags.EnableDynamicModuleImports);
 
                 Container.DocumentSettings.AccessFlags = DocumentAccessFlags.EnableFileLoading;
                 var dirName = Path.GetDirectoryName(FilePath);
@@ -147,9 +147,10 @@ namespace ModFramework.Modules.ClearScript
                 ModuleResolver = new ModuleResolver(Container, Container.DocumentSettings.Loader);
                 Container.DocumentSettings.Loader = ModuleResolver;
 
-                Container.AddHostObject("host", new HostFunctions());
-                Container.AddHostType(typeof(Console));
+                Container.AddHostObject("host", new ExtendedHostFunctions());
+                //Container.AddHostType(typeof(Console));
                 Container.AddHostType("console", typeof(JavascriptConsole));
+                Container.AllowReflection = true;
 
                 if (Manager.Modder != null)
                 {

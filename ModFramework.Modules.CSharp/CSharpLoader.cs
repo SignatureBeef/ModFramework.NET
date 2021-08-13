@@ -80,22 +80,24 @@ namespace ModFramework.Modules.CSharp
 
         IEnumerable<MetadataReference> LoadExternalRefs(string path)
         {
+            var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
+            if (String.IsNullOrWhiteSpace(assemblyPath))
+                assemblyPath = Environment.CurrentDirectory;
+
             foreach (var refs_path in Directory.GetFiles(path, "*.refs"))
             {
                 if (OnExternalRefFound?.Invoke(refs_path) == false)
                     continue;
 
                 var refs = File.ReadLines(refs_path);
-                var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
-
-                if (assemblyPath is null) continue;
 
                 foreach (var ref_file in refs)
                 {
+                    var full_path = Path.Combine(Environment.CurrentDirectory, ref_file);
                     var sys_path = Path.Combine(assemblyPath, ref_file);
 
-                    if (File.Exists(ref_file))
-                        yield return MetadataReference.CreateFromFile(ref_file);
+                    if (File.Exists(full_path))
+                        yield return MetadataReference.CreateFromFile(full_path);
 
                     else if (File.Exists(sys_path))
                         yield return MetadataReference.CreateFromFile(sys_path);
@@ -127,6 +129,46 @@ namespace ModFramework.Modules.CSharp
         public static bool DefaultIncludeLocalSystemAssemblies { get; set; } = true;
         public bool IncludeLocalSystemAssemblies { get; set; } = DefaultIncludeLocalSystemAssemblies;
 
+        public IEnumerable<string> GetAllSystemReferences() => GetAllSystemReferences(out var _);
+
+        public IEnumerable<string> GetAllSystemReferences(out IEnumerable<string> libs)
+        {
+            libs = GetSystemReferences();
+
+            if (IncludeLocalSystemAssemblies && libs is not null && libs.Count() == 0)
+            {
+                return GetReferencedAssemblies();
+            }
+
+            return libs;
+        }
+
+        public IEnumerable<string> GetSystemReferences()
+        {
+            var libs = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
+                .Split(Path.PathSeparator)?
+                .Where(x => !x.StartsWith(Environment.CurrentDirectory));
+            if (libs != null)
+                foreach (var lib in libs)
+                    yield return lib;
+        }
+
+        public IEnumerable<string> GetReferencedAssemblies()
+        {
+            var asms = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var asm in asms.Where(x => !x.IsDynamic))
+            {
+                if (!string.IsNullOrWhiteSpace(asm.Location) && File.Exists(asm.Location))
+                    yield return asm.Location;
+            }
+
+            foreach (var file in Directory.GetFiles(Environment.CurrentDirectory, "Syste*.dll"))
+                yield return file;
+
+            yield return "netstandard.dll";
+            yield return "mscorlib.dll";
+        }
+
         CompilationContext CreateContext(CreateContextOptions options)
         {
             var assemblyPath = Path.GetDirectoryName(typeof(object).GetTypeInfo().Assembly.Location);
@@ -144,11 +186,11 @@ namespace ModFramework.Modules.CSharp
 
             var refs = new List<MetadataReference>();
 
-            var referenceAssemblies = DependencyContext.Default.CompileLibraries
-                .Where(cl => cl.Type == "referenceassembly")
-                .SelectMany(x => x.ResolveReferencePaths())
-                .Select(asm => MetadataReference.CreateFromFile(asm))
-                .ToArray();
+            //var referenceAssemblies = DependencyContext.Default.CompileLibraries
+            //    .Where(cl => cl.Type == "referenceassembly")
+            //    .SelectMany(x => x.ResolveReferencePaths())
+            //    .Select(asm => MetadataReference.CreateFromFile(asm))
+            //    .ToArray();
 
             if (options.Meta?.MetadataReferences != null)
                 foreach (var mref in options.Meta.MetadataReferences
@@ -178,29 +220,10 @@ namespace ModFramework.Modules.CSharp
                 .AddReferences(refs)
             ;
 
-            var libs = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
-                .Split(Path.PathSeparator)?
-                .Where(x => !x.StartsWith(Environment.CurrentDirectory));
-            if (libs != null)
-                foreach (var lib in libs)
-                {
-                    compilation = compilation.AddReferences(MetadataReference.CreateFromFile(lib));
-                }
-
-            if (IncludeLocalSystemAssemblies && libs is not null && libs.Count() == 0)
+            var sysrefs = GetAllSystemReferences(out var libs);
+            foreach (var lib in sysrefs)
             {
-                var asms = AppDomain.CurrentDomain.GetAssemblies();
-                foreach (var asm in asms.Where(x => !x.IsDynamic))
-                {
-                    if (!string.IsNullOrWhiteSpace(asm.Location) && File.Exists(asm.Location))
-                        compilation = compilation.AddReferences(MetadataReference.CreateFromFile(asm.Location));
-                }
-
-                foreach (var file in Directory.GetFiles(Environment.CurrentDirectory, "Syste*.dll"))
-                    compilation = compilation.AddReferences(MetadataReference.CreateFromFile(file));
-
-                compilation = compilation.AddReferences(MetadataReference.CreateFromFile("netstandard.dll"));
-                compilation = compilation.AddReferences(MetadataReference.CreateFromFile("mscorlib.dll"));
+                compilation = compilation.AddReferences(MetadataReference.CreateFromFile(lib));
             }
 
             var emitOptions = new EmitOptions(
@@ -612,6 +635,7 @@ namespace ModFramework.Modules.CSharp
         }
 
         public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp");
+
         public string PluginsDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "plugins");
         public string GeneratedDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "generated");
 

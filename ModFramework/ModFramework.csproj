@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>net5.0;net472</TargetFrameworks>
-		<PackageVersion>1.0.12-alpha</PackageVersion>
+		<PackageVersion>1.0.13-alpha</PackageVersion>
 		<PackageId>ModFramework</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
