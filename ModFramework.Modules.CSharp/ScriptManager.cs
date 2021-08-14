@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace ModFramework.Modules.CSharp
 {
@@ -79,7 +80,7 @@ namespace ModFramework.Modules.CSharp
                 var dirName = Path.GetDirectoryName(FilePath);
                 if (dirName is null) throw new DirectoryNotFoundException("Failed to find script directory:" + (dirName ?? "<null>"));
 
-                _script = CSharpScript.Create(Content, Manager.ScriptOptions, globalsType: typeof(Globals));
+                _script = CSharpScript.Create(Content, Manager.ScriptOptions.WithFilePath(FilePath), globalsType: typeof(Globals));
 
                 //foreach (var reff in _script.GetCompilation().References)
                 //    Console.WriteLine($"{reff.Display} - {File.Exists(reff.Display)}");
@@ -126,6 +127,8 @@ namespace ModFramework.Modules.CSharp
                 .WithReferences((MetaData.MetadataReferences ?? Enumerable.Empty<MetadataReference>()).Union(
                     Loader.GetAllSystemReferences().Select(f => MetadataReference.CreateFromFile(f))
                  ))
+                .WithEmitDebugInformation(true)
+                .WithFileEncoding(Encoding.UTF8)
             ;
         }
 
