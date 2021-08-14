@@ -165,8 +165,11 @@ namespace ModFramework.Modules.CSharp
             foreach (var file in Directory.GetFiles(Environment.CurrentDirectory, "Syste*.dll"))
                 yield return file;
 
-            yield return "netstandard.dll";
-            yield return "mscorlib.dll";
+            if (File.Exists("netstandard.dll"))
+                yield return Path.Combine(Environment.CurrentDirectory, "netstandard.dll");
+
+            if (File.Exists("mscorlib.dll"))
+                yield return Path.Combine(Environment.CurrentDirectory, "mscorlib.dll");
         }
 
         CompilationContext CreateContext(CreateContextOptions options)

@@ -81,6 +81,9 @@ namespace ModFramework.Modules.CSharp
 
                 _script = CSharpScript.Create(Content, Manager.ScriptOptions, globalsType: typeof(Globals));
 
+                //foreach (var reff in _script.GetCompilation().References)
+                //    Console.WriteLine($"{reff.Display} - {File.Exists(reff.Display)}");
+
                 Globals = new Globals();
                 var state = _script.RunAsync(Globals).Result;
             }
