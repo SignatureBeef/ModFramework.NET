@@ -25,68 +25,6 @@ using System.Reflection;
 namespace ModFramework
 {
     /// <summary>
-    /// Defines when the mod is ran
-    /// </summary>
-    public enum ModType
-    {
-        /// <summary>
-        /// Occurs when the binary is about to be read and patched
-        /// </summary>
-        Read,
-
-        /// <summary>
-        /// Occurs before MonoMod starts merging binaries together
-        /// </summary>
-        PreMerge,
-
-        /// <summary>
-        /// Occurs before MonoMod applies patches
-        /// </summary>
-        PrePatch,
-
-        /// <summary>
-        /// Occurs after MonoMod has completed processing all patches
-        /// </summary>
-        PostPatch,
-
-        /// <summary>
-        /// Occurs when the patched binary has started
-        /// </summary>
-        Runtime,
-
-        /// <summary>
-        /// Occurs when the patched binary has been written to either a steam or file path.
-        /// </summary>
-        Write,
-    }
-
-    /// <summary>
-    /// Defines a generalised order in which the mod is applied
-    /// </summary>
-    public enum ModPriority : int
-    {
-        /// <summary>
-        /// May run slightly earlier than other mods
-        /// </summary>
-        Early = -100,
-
-        /// <summary>
-        /// Default priority, no preference or requirements
-        /// </summary>
-        Default = 0,
-
-        /// <summary>
-        /// May run later than most mods
-        /// </summary>
-        Late = 50,
-
-        /// <summary>
-        /// May be one of the last mods to be ran
-        /// </summary>
-        Last = 100,
-    }
-
-    /// <summary>
     /// Describes a modification instance
     /// </summary>
     [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]

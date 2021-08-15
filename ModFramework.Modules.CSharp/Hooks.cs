@@ -26,6 +26,8 @@ namespace ModFramework.Modules.CSharp
     [MonoMod.MonoModIgnore]
     public static class Hooks
     {
+        public static ScriptManager? ScriptManager { get; set; } // prevent GC and issues with file watching
+
         [Modification(ModType.Read, "Loading CSharp script interface")]
         public static void OnModding(ModFwModder modder)
         {
@@ -52,7 +54,6 @@ namespace ModFramework.Modules.CSharp
             Launch();
         }
 
-        static ScriptManager ScriptManager { get; set; } // prevent GC and issues with file watching
         static void Launch(ModFwModder? modder = null)
         {
             var rootFolder = Path.Combine(Path.Combine(CSharpLoader.GlobalRootDirectory, "plugins", "scripts"));
@@ -63,6 +64,13 @@ namespace ModFramework.Modules.CSharp
             ScriptManager = new ScriptManager(rootFolder, modder);
             ScriptManager.Initialise();
             ScriptManager.WatchForChanges();
+        }
+
+        [Modification(ModType.Shutdown, "Shutting down the CSharp script interface")]
+        public static void OnShutdown()
+        {
+            ScriptManager?.Dispose();
+            ScriptManager = null;
         }
     }
 }

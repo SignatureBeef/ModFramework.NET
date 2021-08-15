@@ -160,5 +160,11 @@ namespace ModFramework
             if (EnableWriteEvents)
                 Modifier.Apply(ModType.Write, this);
         }
+
+        public override void Dispose()
+        {
+            Modifier.Apply(ModType.Shutdown, this);
+            base.Dispose();
+        }
     }
 }

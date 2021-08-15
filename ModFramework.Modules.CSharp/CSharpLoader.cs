@@ -28,6 +28,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace ModFramework.Modules.CSharp
 {
@@ -102,7 +103,35 @@ namespace ModFramework.Modules.CSharp
                     else if (File.Exists(sys_path))
                         yield return MetadataReference.CreateFromFile(sys_path);
 
-                    else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFullPath(refs_path)})");
+                    else
+                    {
+                        IEnumerable<string> matches = Enumerable.Empty<string>();
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            var x64 = Path.Combine(Environment.CurrentDirectory, "runtimes", "osx-x64");
+                            if (Directory.Exists(x64))
+                                matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
+                        }
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                        {
+                            var x64 = Path.Combine(Environment.CurrentDirectory, "runtimes", "linux-x64");
+                            if (Directory.Exists(x64))
+                                matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
+                        }
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        {
+                            var x64 = Path.Combine(Environment.CurrentDirectory, "runtimes", "win-x64");
+                            if (Directory.Exists(x64))
+                                matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
+                        }
+
+                        if (matches.Any())
+                        {
+                            var match = matches.First();
+                            yield return MetadataReference.CreateFromFile(match);
+                        }
+                        else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFullPath(refs_path)})");
+                    }
                 }
             }
         }

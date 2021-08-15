@@ -51,5 +51,12 @@ namespace ModFramework.Modules.ClearScript
             ScriptManager.Initialise();
             ScriptManager.WatchForChanges();
         }
+
+        [Modification(ModType.Shutdown, "Shutting down the ClearScript interface")]
+        public static void OnShutdown()
+        {
+            ScriptManager?.Dispose();
+            ScriptManager = null;
+        }
     }
 }

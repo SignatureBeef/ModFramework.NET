@@ -49,5 +49,12 @@ namespace ModFramework.Modules.Lua
             ScriptManager.Initialise();
             ScriptManager.WatchForChanges();
         }
+
+        [Modification(ModType.Shutdown, "Shutting down the Lua script interface")]
+        public static void OnShutdown()
+        {
+            ScriptManager?.Dispose();
+            ScriptManager = null;
+        }
     }
 }

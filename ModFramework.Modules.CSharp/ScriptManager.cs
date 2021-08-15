@@ -44,7 +44,7 @@ namespace ModFramework.Modules.CSharp
         public object? LoadError { get; set; }
 
         public ScriptManager Manager { get; set; }
-        private Globals Globals { get; set; }
+        private Globals? Globals { get; set; }
 
         private Script<object>? _script;
 
@@ -55,13 +55,21 @@ namespace ModFramework.Modules.CSharp
 
         public void Unload()
         {
-            Globals?.Dispose?.Invoke();
-            Globals = null;
-            _script = null;
+            try
+            {
+                Globals?.Dispose?.Invoke();
+                Globals = null;
+                _script = null;
+            }
+            catch(Exception ex)
+            {
+                Console.Error.WriteLine(ex);
+            }
         }
 
         public void Dispose()
         {
+            Unload();
             FilePath = null;
             FileName = null;
             Content = null;
@@ -255,6 +263,16 @@ namespace ModFramework.Modules.CSharp
         public void Dispose()
         {
             _watcher?.Dispose();
+
+            var cscripts = _scripts;
+            if (cscripts is not null)
+            {
+                foreach (var script in cscripts)
+                {
+                    script.Dispose();
+                }
+                cscripts.Clear();
+            }
         }
 
         public void Cli()

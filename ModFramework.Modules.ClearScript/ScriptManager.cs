@@ -362,6 +362,16 @@ namespace ModFramework.Modules.ClearScript
         public void Dispose()
         {
             _watcher?.Dispose();
+
+            var cscripts = _scripts;
+            if (cscripts is not null)
+            {
+                foreach (var script in cscripts)
+                {
+                    script.Dispose();
+                }
+                cscripts.Clear();
+            }
         }
 
         public void Cli()
