@@ -125,7 +125,7 @@ namespace ModFramework.Relinker
 
                     GACPaths = new string[] { } // avoid MonoMod looking up the GAC, which causes an exception on .netcore
                 };
-                mm.Log($"[OTAPI] Processing corelibs to be net5: {Path.GetFileName(input)}");
+                mm.Log($"[OTAPI] Processing corelibs to be net6: {Path.GetFileName(input)}");
 
                 var extractor = new ResourceExtractor();
                 var embeddedResourcesDir = extractor.Extract(input);
@@ -153,7 +153,7 @@ namespace ModFramework.Relinker
             {
                 tfa.ConstructorArguments[0] = new CustomAttributeArgument(
                     tfa.ConstructorArguments[0].Type,
-                    ".NETCoreApp,Version=v5.0"
+                    ".NETCoreApp,Version=v6.0"
                 );
                 var fdm = tfa.Properties.Single();
                 tfa.Properties[0] = new CustomAttributeNamedArgument(

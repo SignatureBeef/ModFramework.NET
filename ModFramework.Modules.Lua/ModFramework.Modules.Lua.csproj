@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net5.0;net472</TargetFrameworks>
-		<PackageVersion>1.0.16-alpha</PackageVersion>
+		<TargetFramework>net6.0</TargetFramework>
+		<PackageVersion>1.0.17-alpha</PackageVersion>
+		<Version>1.0.17.0-alpha</Version>
 		<PackageId>ModFramework.Modules.Lua</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -15,8 +16,8 @@
 		<Description>A plugin for ModFramework that loads Lua scripts</Description>
 		<PackageReleaseNotes>A plugin for ModFramework that loads Lua scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
-    <LangVersion>9.0</LangVersion>
-    <Nullable>enable</Nullable>
+		<LangVersion>9.0</LangVersion>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
 	</ItemGroup>
@@ -24,7 +25,7 @@
 		<ProjectReference Include="..\ModFramework\ModFramework.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="NLua" Version="1.5.9" />
+		<PackageReference Include="NLua" Version="1.6.0" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">
 		<RemoveDir Directories="$(OUTDIR)" />

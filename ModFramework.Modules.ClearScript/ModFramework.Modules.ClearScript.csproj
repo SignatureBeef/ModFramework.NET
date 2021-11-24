@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net5.0;net472</TargetFrameworks>
-		<!--<OutputType>Exe</OutputType>-->
-		<PackageVersion>1.0.16-alpha</PackageVersion>
+		<TargetFramework>net6.0</TargetFramework>
+		<PackageVersion>1.0.17-alpha</PackageVersion>
+		<Version>1.0.17.0-alpha</Version>
 		<Authors>DeathCradle</Authors>
 		<Copyright>DeathCradle</Copyright>
 		<PackageId>ModFramework.Modules.ClearScript</PackageId>
@@ -13,26 +13,26 @@
 		<Summary>Enables ES6 javascript plugins</Summary>
 		<Title>ModFramework ClearScript</Title>
 		<Description>ModFramework module to enable javascript plugins via Microsoft's ClearScript.</Description>
-    <LangVersion>9.0</LangVersion>
-    <Nullable>enable</Nullable>
+		<LangVersion>9.0</LangVersion>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-	  <WarningLevel>4</WarningLevel>
+		<WarningLevel>4</WarningLevel>
 	</PropertyGroup>
 	<ItemGroup>
 		<None Remove="Microsoft.ClearScript" />
 		<None Remove="Typings\" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.ClearScript" Version="7.1.5" />
-		<PackageReference Include="MonoMod" Version="21.8.5.1" />
-		<PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.1.5" />
-		<PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.1.5" />
+		<PackageReference Include="Microsoft.ClearScript" Version="7.2.0" />
+		<PackageReference Include="MonoMod" Version="21.11.1.1" />
+		<PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.2.0" />
+		<PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.2.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\ModFramework\ModFramework.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Typings\" />
+		<Folder Include="Typings\" />
 	</ItemGroup>
 </Project>
