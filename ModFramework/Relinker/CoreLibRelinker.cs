@@ -145,7 +145,7 @@ namespace ModFramework.Relinker
 
         void PatchTargetFramework()
         {
-            if(Modder is null) throw new ArgumentNullException(nameof(Modder));
+            if (Modder is null) throw new ArgumentNullException(nameof(Modder));
             var tfa = Modder.Module.Assembly.CustomAttributes.SingleOrDefault(ca =>
                 ca.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
 
@@ -304,7 +304,11 @@ namespace ModFramework.Relinker
             {
                 var asm = ResolveAssembly(type);
 
-                var existing = type.Module.AssemblyReferences.SingleOrDefault(x => x.Name == asm.Name);
+                // transition period (until i get the new roslyn package working wrt nullattrs)
+                // we must find the highest package, because System.Runtime can have v5 + v6
+                var existing = type.Module.AssemblyReferences
+                    .OrderByDescending(x => x.Version)
+                    .FirstOrDefault(x => x.Name == asm.Name);
                 if (existing != null)
                 {
                     type.Scope = existing;
@@ -315,6 +319,10 @@ namespace ModFramework.Relinker
                     type.Module.AssemblyReferences.Add(asm);
                 }
             }
+            //else if (type.FullName.Contains("System.Runtime.CompilerServices.NullableAttribute"))
+            //{
+            //    type.Scope = Modder.Module;
+            //}
         }
 
         public void Relink(Instruction instr)
@@ -331,7 +339,6 @@ namespace ModFramework.Relinker
                 foreach (var prm in mref.Parameters)
                 {
                     FixType(prm.ParameterType);
-
                     FixAttributes(prm.CustomAttributes);
                 }
             }
@@ -406,6 +413,7 @@ namespace ModFramework.Relinker
         {
             base.Relink(field);
             FixType(field.FieldType);
+            FixAttributes(field.CustomAttributes);
         }
 
         void FixAttributes(Collection<CustomAttribute> attributes)
@@ -432,7 +440,11 @@ namespace ModFramework.Relinker
             base.Relink(method);
 
             foreach (var prm in method.Parameters)
+            {
+
                 FixType(prm.ParameterType);
+                FixAttributes(prm.CustomAttributes);
+            }
 
             FixAttributes(method.CustomAttributes);
         }

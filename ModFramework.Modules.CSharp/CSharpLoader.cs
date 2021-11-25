@@ -238,6 +238,7 @@ namespace ModFramework.Modules.CSharp
             var compile_options = new CSharpCompilationOptions(options.OutputKind)
                     .WithOptimizationLevel(OptimizationLevel.Debug)
                     .WithPlatform(Platform.AnyCpu)
+                    .WithNullableContextOptions(NullableContextOptions.Disable)
                     .WithAllowUnsafe(true);
 
             var cf = options.CompilationFiles;
