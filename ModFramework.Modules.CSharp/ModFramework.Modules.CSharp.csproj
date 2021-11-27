@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
-		<PackageVersion>1.0.18-alpha</PackageVersion>
-		<Version>1.0.18.0-alpha</Version>
+		<PackageVersion>1.0.19-alpha</PackageVersion>
+		<Version>1.0.19.0-alpha</Version>
 		<PackageId>ModFramework.Modules.CSharp</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>

@@ -192,7 +192,19 @@ namespace ModFramework.Modules.CSharp
             }
 
             foreach (var file in Directory.GetFiles(Environment.CurrentDirectory, "Syste*.dll"))
-                yield return file;
+            {
+                Assembly? assembly = null;
+                try
+                {
+                    assembly = Assembly.Load(file);
+                }
+                catch
+                {
+                    System.Diagnostics.Debug.WriteLine($"Skipping system ref: {Path.GetFileName(file)}");
+                }
+                if (assembly is not null)
+                    yield return file;
+            }
 
             if (File.Exists("netstandard.dll"))
                 yield return Path.Combine(Environment.CurrentDirectory, "netstandard.dll");
