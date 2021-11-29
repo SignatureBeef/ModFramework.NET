@@ -399,5 +399,16 @@ namespace ModFramework
 
             return true;
         }
+
+        /// <summary>
+        /// Returns the assemblies TargetFrameworkAttribute
+        /// </summary>
+        /// <param name="assembly"></param>
+        /// <returns></returns>
+        public static CustomAttribute? GetTargetFrameworkAttribute(this AssemblyDefinition assembly)
+        {
+            return assembly.CustomAttributes.SingleOrDefault(ca =>
+                ca.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
+        }
     }
 }

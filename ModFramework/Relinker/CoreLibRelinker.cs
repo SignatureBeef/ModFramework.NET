@@ -146,9 +146,7 @@ namespace ModFramework.Relinker
         void PatchTargetFramework()
         {
             if (Modder is null) throw new ArgumentNullException(nameof(Modder));
-            var tfa = Modder.Module.Assembly.CustomAttributes.SingleOrDefault(ca =>
-                ca.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
-
+            var tfa = Modder.Module.Assembly.GetTargetFrameworkAttribute();
             if (tfa != null)
             {
                 tfa.ConstructorArguments[0] = new CustomAttributeArgument(
