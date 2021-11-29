@@ -367,5 +367,37 @@ namespace ModFramework
 
             return firstInstruction;
         }
+
+        /// <summary>
+        /// Determines if two method signatures are similar
+        /// </summary>
+        /// <param name="method"></param>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static bool SignatureMatches(this MethodReference method, MethodReference compareTo)
+        {
+            if (method.Name != compareTo.Name)
+                return false;
+            if (method.ReturnType.FullName != compareTo.ReturnType.FullName)
+                return false;
+            if (method.Parameters.Count != compareTo.Parameters.Count)
+                return false;
+            if (method.GenericParameters.Count != compareTo.GenericParameters.Count)
+                return false;
+
+            for (var x = 0; x < method.Parameters.Count; x++)
+            {
+                if (method.Parameters[x].ParameterType.FullName != compareTo.Parameters[x].ParameterType.FullName)
+                    return false;
+            }
+
+            for (var x = 0; x < method.GenericParameters.Count; x++)
+            {
+                if (method.GenericParameters[x].Name != compareTo.GenericParameters[x].Name)
+                    return false;
+            }
+
+            return true;
+        }
     }
 }
