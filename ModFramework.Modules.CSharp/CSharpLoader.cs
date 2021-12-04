@@ -83,7 +83,7 @@ namespace ModFramework.Modules.CSharp
         {
             var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
             if (String.IsNullOrWhiteSpace(assemblyPath))
-                assemblyPath = Environment.CurrentDirectory;
+                assemblyPath = AppContext.BaseDirectory;
 
             foreach (var refs_path in Directory.GetFiles(path, "*.refs"))
             {
@@ -108,19 +108,19 @@ namespace ModFramework.Modules.CSharp
                         IEnumerable<string> matches = Enumerable.Empty<string>();
                         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                         {
-                            var x64 = Path.Combine(Environment.CurrentDirectory, "runtimes", "osx-x64");
+                            var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "osx-x64");
                             if (Directory.Exists(x64))
                                 matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
                         }
                         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                         {
-                            var x64 = Path.Combine(Environment.CurrentDirectory, "runtimes", "linux-x64");
+                            var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64");
                             if (Directory.Exists(x64))
                                 matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
                         }
                         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
-                            var x64 = Path.Combine(Environment.CurrentDirectory, "runtimes", "win-x64");
+                            var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64");
                             if (Directory.Exists(x64))
                                 matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
                         }
@@ -128,7 +128,8 @@ namespace ModFramework.Modules.CSharp
                         if (matches.Any())
                         {
                             var match = matches.First();
-                            yield return MetadataReference.CreateFromFile(match);
+                            if (File.Exists(match))
+                                yield return MetadataReference.CreateFromFile(match);
                         }
                         else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFullPath(refs_path)})");
                     }
@@ -165,21 +166,40 @@ namespace ModFramework.Modules.CSharp
             libs = GetSystemReferences();
 
             if (IncludeLocalSystemAssemblies && libs is not null && libs.Count() == 0)
-            {
                 return GetReferencedAssemblies();
-            }
 
-            return libs;
+            return libs ?? Enumerable.Empty<string>();
         }
 
         public IEnumerable<string> GetSystemReferences()
         {
             var libs = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
                 .Split(Path.PathSeparator)?
-                .Where(x => !x.StartsWith(Environment.CurrentDirectory));
+                .Where(x => !x.StartsWith(Environment.CurrentDirectory))?
+                .Select(x => ResolveFile(x))?
+                .Where(x => !String.IsNullOrWhiteSpace(x)
+            );
             if (libs != null)
                 foreach (var lib in libs)
-                    yield return lib;
+                {
+                    if (File.Exists(lib))
+                        yield return lib;
+                }
+        }
+
+        public string ResolveFile(string path)
+        {
+            var dir = Path.GetDirectoryName(path);
+            if(String.IsNullOrWhiteSpace(dir))
+            {
+                var filename = Path.GetFileName(path);
+                path = Path.Combine(Environment.CurrentDirectory, filename);
+                if (!File.Exists(path))
+                    path = Path.Combine(Environment.CurrentDirectory, "bin", filename);
+                if (!File.Exists(path))
+                    path = Path.Combine(AppContext.BaseDirectory, filename);
+            }
+            return path;
         }
 
         public IEnumerable<string> GetReferencedAssemblies()
@@ -191,7 +211,7 @@ namespace ModFramework.Modules.CSharp
                     yield return asm.Location;
             }
 
-            foreach (var file in Directory.GetFiles(Environment.CurrentDirectory, "Syste*.dll"))
+            foreach (var file in Directory.GetFiles(AppContext.BaseDirectory, "Syste*.dll"))
             {
                 Assembly? assembly = null;
                 try
@@ -206,11 +226,21 @@ namespace ModFramework.Modules.CSharp
                     yield return file;
             }
 
-            if (File.Exists("netstandard.dll"))
-                yield return Path.Combine(Environment.CurrentDirectory, "netstandard.dll");
+            var p = ResolveFile("netstandard.dll");
+            if (File.Exists(p))
+                yield return p;
 
-            if (File.Exists("mscorlib.dll"))
-                yield return Path.Combine(Environment.CurrentDirectory, "mscorlib.dll");
+            p = ResolveFile("mscorlib.dll");
+            if (File.Exists(p))
+                yield return p;
+        }
+
+        public MetadataReference? TryCreateRefFromFile(string path)
+        {
+            path = ResolveFile(path);
+            if (File.Exists(path))
+                return MetadataReference.CreateFromFile(path);
+            return null;
         }
 
         CompilationContext CreateContext(CreateContextOptions options)
@@ -238,7 +268,11 @@ namespace ModFramework.Modules.CSharp
 
             if (options.Meta?.MetadataReferences != null)
                 foreach (var mref in options.Meta.MetadataReferences
-                    .Concat(GlobalAssemblies.Select(globalPath => MetadataReference.CreateFromFile(globalPath)))
+                    .Concat(
+                        GlobalAssemblies
+                        .Select(globalPath => TryCreateRefFromFile(globalPath))
+                        .Where(x => x is not null)
+                    )
                 )
                 {
                     if (!refs.Any(x => x.Display == mref.Display))
@@ -268,7 +302,9 @@ namespace ModFramework.Modules.CSharp
             var sysrefs = GetAllSystemReferences(out var libs);
             foreach (var lib in sysrefs)
             {
-                compilation = compilation.AddReferences(MetadataReference.CreateFromFile(lib));
+                var mref = TryCreateRefFromFile(lib);
+                if (mref is not null)
+                    compilation = compilation.AddReferences(mref);
             }
 
             var emitOptions = new EmitOptions(

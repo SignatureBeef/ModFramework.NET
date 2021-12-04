@@ -71,7 +71,7 @@ namespace ModFramework
 
         public static void Apply(ModType modType, MonoMod.MonoModder? modder, IEnumerable<Assembly>? assemblies, IEnumerable<object>? optionalParams = null)
         {
-            Console.WriteLine($"[ModFw:{modType}] Applying mods...");
+            if (modder.LogVerboseEnabled) Console.WriteLine($"[ModFw:{modType}] Applying mods...");
             var availableParameters = new List<object>()
             {
                 modType,
@@ -85,7 +85,7 @@ namespace ModFramework
                 .Where(x => x.Type == modType);
             IterateMods(modifications, (modification) =>
             {
-                Console.WriteLine($"[ModFw:{modType}] {modification.Description}");
+                if (modder.LogVerboseEnabled) Console.WriteLine($"[ModFw:{modType}] {modification.Description}");
                 if (modification?.MethodBase?.DeclaringType is null) throw new Exception($"Failed to determine ctor");
 
                 MethodBase modCtor = modification.MethodBase; //.DeclaringType.GetConstructors().Single();

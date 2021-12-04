@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
-		<PackageVersion>1.0.20-alpha</PackageVersion>
-		<Version>1.0.20.0-alpha</Version>
+		<PackageVersion>1.0.21-alpha</PackageVersion>
+		<Version>1.0.21.0-alpha</Version>
 		<PackageId>ModFramework.Modules.CSharp</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -21,7 +21,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="3.11.0" />
-		<PackageReference Include="MonoMod" Version="21.11.1.1" />
+		<PackageReference Include="MonoMod" Version="21.11.9.2" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0" />
 	</ItemGroup>

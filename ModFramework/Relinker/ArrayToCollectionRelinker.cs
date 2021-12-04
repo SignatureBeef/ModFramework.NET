@@ -68,7 +68,7 @@ namespace ModFramework.Relinker
             CreateCollectionMethod.ReturnType = ICollectionTItem;
             CreateCollectionMethod.DeclaringType = CollectionGen;
 
-            System.Console.WriteLine($"[ModFw] Relinking to collection {type.FullName}=>{ICollectionDef.FullName}");
+            if (modder.LogVerboseEnabled) System.Console.WriteLine($"[ModFw] Relinking to collection {type.FullName}=>{ICollectionDef.FullName}");
         }
 
         public override void Relink(FieldDefinition field)
