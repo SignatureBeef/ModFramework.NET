@@ -25,11 +25,11 @@ namespace ModFramework
     [MonoMod.MonoModIgnore]
     public class ResourceExtractor
     {
-        public string Extract(string inputFile)
+        public string Extract(string inputFile, string? resourcesFolder = null)
         {
             if (string.IsNullOrEmpty(inputFile) || !File.Exists(inputFile)) throw new FileNotFoundException("Resource assembly was not found", inputFile);
 
-            var input = Path.GetDirectoryName(inputFile);
+            var input = resourcesFolder ?? Path.GetDirectoryName(inputFile);
 
             if (input is null) throw new DirectoryNotFoundException("Resource assembly parent directory was not found: " + (input ?? "<null>"));
 

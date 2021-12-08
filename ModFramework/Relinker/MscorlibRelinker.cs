@@ -31,26 +31,30 @@ namespace ModFramework.Relinker
     {
         public event ResolveCoreLibHandler? Resolve;
 
-        public static void PostProcessMscorLib(params string[] inputs)
+        public static void PostProcessMscorLib(string? outputFolder, string? resourcesFolder, params string[] inputs)
         {
-            PostProcessMscorLib(null, inputs);
+            PostProcessMscorLib(outputFolder, resourcesFolder, null, inputs);
         }
 
-        public static void PostProcessMscorLib(MscorlibRelinker? task, params string[] inputs)
+        public static void PostProcessMscorLib(string? outputFolder, string? resourcesFolder, MscorlibRelinker? task, params string[] inputs)
         {
+            if (String.IsNullOrWhiteSpace(outputFolder))
+                outputFolder = Environment.CurrentDirectory;
+
             foreach (var input in inputs)
             {
+                var fileName = Path.GetFileName(input);
                 using var mm = new ModFwModder()
                 {
                     InputPath = input,
-                    OutputPath = Path.GetFileName(input),
+                    OutputPath = Path.Combine(outputFolder, fileName),
                     MissingDependencyThrow = false,
                     //LogVerboseEnabled = true,
                     // PublicEverything = true, // this is done in setup
 
                     GACPaths = new string[] { } // avoid MonoMod looking up the GAC, which causes an exception on .netcore
                 };
-                mm.Log($"[OTAPI] Processing corelibs to be net4: {Path.GetFileName(input)}");
+                mm.Log($"[OTAPI] Processing corelibs to be net4: {fileName}");
 
                 var extractor = new ResourceExtractor();
                 var embeddedResourcesDir = extractor.Extract(input);

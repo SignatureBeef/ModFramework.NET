@@ -106,29 +106,33 @@ namespace ModFramework.Relinker
     {
         public event ResolveCoreLibHandler? Resolve;
 
-        public static void PostProcessCoreLib(params string[] inputs)
+        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, params string[] inputs)
         {
-            PostProcessCoreLib(null, inputs);
+            PostProcessCoreLib(outputFolder, resourcesFolder, null, inputs);
         }
 
-        public static void PostProcessCoreLib(CoreLibRelinker? task, params string[] inputs)
+        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, CoreLibRelinker? task, params string[] inputs)
         {
+            if (String.IsNullOrWhiteSpace(outputFolder))
+                outputFolder = Environment.CurrentDirectory;
+
             foreach (var input in inputs)
             {
+                var fileName = Path.GetFileName(input);
                 using var mm = new ModFwModder()
                 {
                     InputPath = input,
-                    OutputPath = Path.GetFileName(input),
+                    OutputPath = Path.Combine(outputFolder, fileName),
                     MissingDependencyThrow = false,
                     //LogVerboseEnabled = true,
                     // PublicEverything = true, // this is done in setup
 
                     GACPaths = new string[] { } // avoid MonoMod looking up the GAC, which causes an exception on .netcore
                 };
-                mm.Log($"[OTAPI] Processing corelibs to be net6: {Path.GetFileName(input)}");
+                mm.Log($"[OTAPI] Processing corelibs to be net6: {fileName}");
 
                 var extractor = new ResourceExtractor();
-                var embeddedResourcesDir = extractor.Extract(input);
+                var embeddedResourcesDir = extractor.Extract(input, resourcesFolder);
 
                 (mm.AssemblyResolver as DefaultAssemblyResolver)!.AddSearchDirectory(embeddedResourcesDir);
 
