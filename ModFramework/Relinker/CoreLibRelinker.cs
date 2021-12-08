@@ -122,12 +122,12 @@ namespace ModFramework.Relinker
             }
         }
 
-        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, params string[] inputs)
+        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, IEnumerable<string> searchDirectories, params string[] inputs)
         {
-            PostProcessCoreLib(outputFolder, resourcesFolder, null, inputs);
+            PostProcessCoreLib(outputFolder, resourcesFolder, searchDirectories, null, inputs);
         }
 
-        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, CoreLibRelinker? task, params string[] inputs)
+        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, IEnumerable<string>? searchDirectories, CoreLibRelinker? task, params string[] inputs)
         {
             if (String.IsNullOrWhiteSpace(outputFolder))
                 outputFolder = Environment.CurrentDirectory;
@@ -150,7 +150,12 @@ namespace ModFramework.Relinker
                 var extractor = new ResourceExtractor();
                 var embeddedResourcesDir = extractor.Extract(input, resourcesFolder);
 
-                (mm.AssemblyResolver as DefaultAssemblyResolver)!.AddSearchDirectory(embeddedResourcesDir);
+                var dar = (DefaultAssemblyResolver)mm.AssemblyResolver;
+                dar.AddSearchDirectory(embeddedResourcesDir);
+
+                if (searchDirectories != null)
+                    foreach (var folder in searchDirectories)
+                        dar.AddSearchDirectory(folder);
 
                 mm.Read();
 
