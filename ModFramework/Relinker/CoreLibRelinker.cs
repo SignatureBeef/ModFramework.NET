@@ -106,6 +106,22 @@ namespace ModFramework.Relinker
     {
         public event ResolveCoreLibHandler? Resolve;
 
+        private string? _SystemRefsOutputFolder;
+        /// <summary>
+        /// Optional Directory where System dll's can be output during the patch process.
+        /// </summary>
+        public string? SystemRefsOutputFolder
+        {
+            get => _SystemRefsOutputFolder;
+            set
+            {
+                if (!Directory.Exists(value))
+                    throw new DirectoryNotFoundException($"[{nameof(SystemRefsOutputFolder)}] cannot be set to non-existent folder: {value}");
+
+                _SystemRefsOutputFolder = value;
+            }
+        }
+
         public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, params string[] inputs)
         {
             PostProcessCoreLib(outputFolder, resourcesFolder, null, inputs);
@@ -207,9 +223,12 @@ namespace ModFramework.Relinker
             if (match is not null && match.FilePath is not null)
             {
                 // this is only needed for ilspy to pick up .net5 libs on osx
-                var filename = Path.GetFileName(match.FilePath);
-                if (!File.Exists(filename))
-                    File.Copy(match.FilePath, filename);
+                if (!String.IsNullOrWhiteSpace(SystemRefsOutputFolder))
+                {
+                    var filename = Path.GetFileName(match.FilePath);
+                    if (!File.Exists(filename))
+                        File.Copy(match.FilePath, Path.Combine(SystemRefsOutputFolder, filename));
+                }
 
                 return match.AsNameReference();
             }
