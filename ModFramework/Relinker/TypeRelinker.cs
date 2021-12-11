@@ -27,79 +27,110 @@ namespace ModFramework.Relinker
             {
                 foreach (var sa in sd.SecurityAttributes)
                 {
-                    FixType(sa.AttributeType);
+                    CheckType(sa.AttributeType, nt => sa.AttributeType = nt);
 
                     foreach (var prop in sa.Properties)
-                        FixType(prop.Argument.Type);
+                        CheckType(prop.Argument.Type);
 
                     foreach (var fld in sa.Fields)
-                        FixType(fld.Argument.Type);
+                        CheckType(fld.Argument.Type);
                 }
             }
         }
 
-        void FixType(TypeReference type)
+        void CheckType<TRef>(TRef type, Action<TRef>? update = null)
+            where TRef : TypeReference
         {
+            var original = type;
             if (type.IsNested)
             {
-                FixType(type.DeclaringType);
+                CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
             }
             else if (type is TypeSpecification ts)
             {
-                FixType(ts.ElementType);
+                CheckType(ts.ElementType);
             }
             else if (type is GenericParameter gp)
             {
                 FixAttributes(gp.CustomAttributes);
 
                 foreach (var prm in gp.GenericParameters)
-                    FixType(prm);
+                    CheckType(prm);
+            }
+            else if (type is GenericInstanceType genericInstanceType)
+            {
+                if (genericInstanceType.HasGenericArguments)
+                    for (var i = 0; i < genericInstanceType.GenericArguments.Count; i++)
+                        CheckType(
+                            genericInstanceType.GenericArguments[i],
+                            nr => genericInstanceType.GenericArguments[i] = nr
+                        );
+            }
+            else if (type is ArrayType arrayType)
+            {
+                CheckType(arrayType.ElementType, ntype => type = (TRef)(object)new ArrayType(ntype, arrayType.Rank));
+            }
+            else if (type is ByReferenceType byRefType)
+            {
+                CheckType(byRefType.ElementType, ntype => type = (TRef)(object)new ByReferenceType(ntype));
             }
             else
             {
-                RelinkType(type);
+                if (type.HasGenericParameters)
+                    for (int i = 0; i < type.GenericParameters.Count; i++)
+                    {
+                        CheckType(
+                            type.GenericParameters[i],
+                            nr => type.GenericParameters[i] = nr
+                        );
+                    }
+
+                type = (TRef)(object)RelinkType(type);
             }
+
+            if (type != original && update is not null)
+                update(type);
         }
 
-        public abstract void RelinkType(TypeReference typeReference);
+        public abstract TypeReference RelinkType(TypeReference typeReference);
 
         public void Relink(Instruction instr)
         {
             if (instr.Operand is MethodReference mref)
             {
                 if (mref is GenericInstanceMethod gim)
-                    FixType(gim.ElementMethod.DeclaringType);
+                    CheckType(gim.ElementMethod.DeclaringType, nt => gim.ElementMethod.DeclaringType = nt);
                 else
-                    FixType(mref.DeclaringType);
+                    CheckType(mref.DeclaringType, nt => mref.DeclaringType = nt);
 
-                FixType(mref.ReturnType);
+                CheckType(mref.ReturnType, nt => mref.ReturnType = nt);
 
                 foreach (var prm in mref.Parameters)
                 {
-                    FixType(prm.ParameterType);
+                    CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
                     FixAttributes(prm.CustomAttributes);
                 }
             }
             else if (instr.Operand is FieldReference fref)
             {
-                FixType(fref.DeclaringType);
-                FixType(fref.FieldType);
+                CheckType(fref.DeclaringType, nt => fref.DeclaringType = nt);
+                CheckType(fref.FieldType, nt => fref.FieldType = nt);
             }
             else if (instr.Operand is TypeSpecification ts)
             {
-                FixType(ts.ElementType);
+                CheckType(ts.ElementType);
             }
             else if (instr.Operand is TypeReference tr)
             {
-                FixType(tr);
+                CheckType(tr, nt => instr.Operand = nt);
             }
             else if (instr.Operand is VariableDefinition vd)
             {
-                FixType(vd.VariableType);
+                CheckType(vd.VariableType, nt => vd.VariableType = nt);
             }
             else if (instr.Operand is ParameterDefinition pd)
             {
-                FixType(pd.ParameterType);
+                CheckType(pd.ParameterType, nt => pd.ParameterType = nt);
             }
             else if (instr.Operand is Instruction[] instructions)
             {
@@ -138,19 +169,19 @@ namespace ModFramework.Relinker
             base.Relink(type);
 
             if (type.BaseType != null)
-                FixType(type.BaseType);
+                CheckType(type.BaseType, nt => type.BaseType = nt);
         }
 
         public override void Relink(EventDefinition typeEvent)
         {
             base.Relink(typeEvent);
-            FixType(typeEvent.EventType);
+            CheckType(typeEvent.EventType, nt => typeEvent.EventType = nt);
         }
 
         public override void Relink(FieldDefinition field)
         {
             base.Relink(field);
-            FixType(field.FieldType);
+            CheckType(field.FieldType, nt => field.FieldType = nt);
             FixAttributes(field.CustomAttributes);
         }
 
@@ -158,18 +189,18 @@ namespace ModFramework.Relinker
         {
             foreach (var attr in attributes)
             {
-                FixType(attr.AttributeType);
+                CheckType(attr.AttributeType);
 
                 foreach (var ca in attr.ConstructorArguments)
-                    FixType(ca.Type);
+                    CheckType(ca.Type);
 
                 foreach (var fld in attr.Fields)
                 {
-                    FixType(fld.Argument.Type);
+                    CheckType(fld.Argument.Type);
                 }
 
                 foreach (var prop in attr.Properties)
-                    FixType(prop.Argument.Type);
+                    CheckType(prop.Argument.Type);
             }
         }
 
@@ -180,7 +211,7 @@ namespace ModFramework.Relinker
             foreach (var prm in method.Parameters)
             {
 
-                FixType(prm.ParameterType);
+                CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
                 FixAttributes(prm.CustomAttributes);
             }
 
@@ -190,19 +221,19 @@ namespace ModFramework.Relinker
         public override void Relink(MethodDefinition method, ParameterDefinition parameter)
         {
             base.Relink(method, parameter);
-            FixType(parameter.ParameterType);
+            CheckType(parameter.ParameterType, nt => parameter.ParameterType = nt);
         }
 
         public override void Relink(MethodDefinition method, VariableDefinition variable)
         {
             base.Relink(method, variable);
-            FixType(variable.VariableType);
+            CheckType(variable.VariableType, nt => variable.VariableType = nt);
         }
 
         public override void Relink(PropertyDefinition property)
         {
             base.Relink(property);
-            FixType(property.PropertyType);
+            CheckType(property.PropertyType, nt => property.PropertyType = nt);
         }
     }
 }

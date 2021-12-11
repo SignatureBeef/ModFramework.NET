@@ -290,7 +290,7 @@ namespace ModFramework.Relinker
             return res;
         }
 
-        public override void RelinkType(TypeReference type)
+        public override TypeReference RelinkType(TypeReference type)
         {
             if (type.Scope.Name == "mscorlib"
                    || type.Scope.Name == "netstandard"
@@ -316,6 +316,7 @@ namespace ModFramework.Relinker
                     }
                 }
             }
+            return type;
         }
     }
 }
