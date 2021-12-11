@@ -190,7 +190,7 @@ namespace ModFramework.Modules.CSharp
         public string ResolveFile(string path)
         {
             var dir = Path.GetDirectoryName(path);
-            if(String.IsNullOrWhiteSpace(dir))
+            if (String.IsNullOrWhiteSpace(dir))
             {
                 var filename = Path.GetFileName(path);
                 path = Path.Combine(Environment.CurrentDirectory, filename);
@@ -216,11 +216,13 @@ namespace ModFramework.Modules.CSharp
                 Assembly? assembly = null;
                 try
                 {
-                    assembly = Assembly.Load(file);
+                    assembly = Assembly.LoadFile(file);
                 }
-                catch
+                catch(Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Skipping system ref: {Path.GetFileName(file)}");
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine($"Skipping system ref: {Path.GetFileName(file)}\n{ex}");
+#endif
                 }
                 if (assembly is not null)
                     yield return file;
@@ -605,6 +607,13 @@ namespace ModFramework.Modules.CSharp
                 foreach (var diagnostic in compilationResult.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error))
                 {
                     error.AppendLine(diagnostic.ToString());
+                }
+
+                error.AppendLine("Refs:");
+                if (ctx.Compilation?.References != null)
+                {
+                    foreach (var dep in ctx.Compilation.References)
+                        error.AppendLine(dep.Display);
                 }
 
                 throw new Exception($"{error}\nCompilation errors above for file: {errorName}");

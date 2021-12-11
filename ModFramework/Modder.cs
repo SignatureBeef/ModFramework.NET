@@ -39,6 +39,13 @@ namespace ModFramework
         public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
         public bool EnableWriteEvents { get; set; }
+        public bool Silent { get; set; } = true;
+
+        public new DefaultAssemblyResolver AssemblyResolver
+        {
+            get => (DefaultAssemblyResolver)base.AssemblyResolver;
+            set => base.AssemblyResolver = value;
+        }
 
         public virtual void AddTask(RelinkTask task)
         {
@@ -53,6 +60,12 @@ namespace ModFramework
         {
             foreach (var task in TaskList)
                 callback(task);
+        }
+
+        public override void Log(string text)
+        {
+            if (!Silent)
+                base.Log(text);
         }
 
         public ModFwModder()
