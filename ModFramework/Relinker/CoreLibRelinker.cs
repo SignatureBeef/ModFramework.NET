@@ -100,9 +100,8 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public delegate AssemblyNameReference ResolveCoreLibHandler(TypeReference target);
 
-
     [MonoMod.MonoModIgnore]
-    public class CoreLibRelinker : RelinkTask
+    public class CoreLibRelinker : TypeRelinker
     {
         public event ResolveCoreLibHandler? Resolve;
 
@@ -154,12 +153,11 @@ namespace ModFramework.Relinker
                 var extractor = new ResourceExtractor();
                 var embeddedResourcesDir = extractor.Extract(input, resourcesFolder);
 
-                var dar = (DefaultAssemblyResolver)mm.AssemblyResolver;
-                dar.AddSearchDirectory(embeddedResourcesDir);
+                mm.AssemblyResolver.AddSearchDirectory(embeddedResourcesDir);
 
                 if (searchDirectories != null)
                     foreach (var folder in searchDirectories)
-                        dar.AddSearchDirectory(folder);
+                        mm.AssemblyResolver.AddSearchDirectory(folder);
 
                 mm.Read();
 
@@ -190,29 +188,10 @@ namespace ModFramework.Relinker
             }
         }
 
-        public override void Registered()
+        protected override void OnInit()
         {
-            base.Registered();
-
             PatchTargetFramework();
-
-            if (Modder is null) throw new ArgumentNullException(nameof(Modder));
-            FixAttributes(Modder.Module.Assembly.CustomAttributes);
-            FixAttributes(Modder.Module.Assembly.MainModule.CustomAttributes);
-
-            foreach (var sd in Modder.Module.Assembly.SecurityDeclarations)
-            {
-                foreach (var sa in sd.SecurityAttributes)
-                {
-                    FixType(sa.AttributeType);
-
-                    foreach (var prop in sa.Properties)
-                        FixType(prop.Argument.Type);
-
-                    foreach (var fld in sa.Fields)
-                        FixType(fld.Argument.Type);
-                }
-            }
+            base.OnInit();
         }
 
         AssemblyNameReference? ResolveSystemType(TypeReference type)
@@ -311,27 +290,12 @@ namespace ModFramework.Relinker
             return res;
         }
 
-        void FixType(TypeReference type)
+        public override void RelinkType(TypeReference type)
         {
-            if (type.IsNested)
-            {
-                FixType(type.DeclaringType);
-            }
-            else if (type is TypeSpecification ts)
-            {
-                FixType(ts.ElementType);
-            }
-            else if (type is GenericParameter gp)
-            {
-                FixAttributes(gp.CustomAttributes);
-
-                foreach (var prm in gp.GenericParameters)
-                    FixType(prm);
-            }
-            else if (type.Scope.Name == "mscorlib"
-                || type.Scope.Name == "netstandard"
-                || type.Scope.Name == "System.Private.CoreLib"
-            )
+            if (type.Scope.Name == "mscorlib"
+                   || type.Scope.Name == "netstandard"
+                   || type.Scope.Name == "System.Private.CoreLib"
+               )
             {
                 var asm = ResolveAssembly(type);
                 if (asm is not null)
@@ -352,152 +316,6 @@ namespace ModFramework.Relinker
                     }
                 }
             }
-            //else if (type.FullName.Contains("System.Runtime.CompilerServices.NullableAttribute"))
-            //{
-            //    type.Scope = Modder.Module;
-            //}
-        }
-
-        public void Relink(Instruction instr)
-        {
-            if (instr.Operand is MethodReference mref)
-            {
-                if (mref is GenericInstanceMethod gim)
-                    FixType(gim.ElementMethod.DeclaringType);
-                else
-                    FixType(mref.DeclaringType);
-
-                FixType(mref.ReturnType);
-
-                foreach (var prm in mref.Parameters)
-                {
-                    FixType(prm.ParameterType);
-                    FixAttributes(prm.CustomAttributes);
-                }
-            }
-            else if (instr.Operand is FieldReference fref)
-            {
-                FixType(fref.DeclaringType);
-                FixType(fref.FieldType);
-            }
-            else if (instr.Operand is TypeSpecification ts)
-            {
-                FixType(ts.ElementType);
-            }
-            else if (instr.Operand is TypeReference tr)
-            {
-                FixType(tr);
-            }
-            else if (instr.Operand is VariableDefinition vd)
-            {
-                FixType(vd.VariableType);
-            }
-            else if (instr.Operand is ParameterDefinition pd)
-            {
-                FixType(pd.ParameterType);
-            }
-            else if (instr.Operand is Instruction[] instructions)
-            {
-                foreach (var ins in instructions)
-                    Relink(ins);
-            }
-            else if (!(
-                instr.Operand is null
-                || instr.Operand is Instruction
-                || instr.Operand is Int16
-                || instr.Operand is Int32
-                || instr.Operand is Int64
-                || instr.Operand is UInt16
-                || instr.Operand is UInt32
-                || instr.Operand is UInt64
-                || instr.Operand is string
-                || instr.Operand is byte
-                || instr.Operand is sbyte
-                || instr.Operand is Single
-                || instr.Operand is Double
-            ))
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        public override void Relink(MethodBody body, Instruction instr)
-        {
-            base.Relink(body, instr);
-
-            Relink(instr);
-        }
-
-        public override void Relink(TypeDefinition type)
-        {
-            base.Relink(type);
-
-            if (type.BaseType != null)
-                FixType(type.BaseType);
-        }
-
-        public override void Relink(EventDefinition typeEvent)
-        {
-            base.Relink(typeEvent);
-            FixType(typeEvent.EventType);
-        }
-
-        public override void Relink(FieldDefinition field)
-        {
-            base.Relink(field);
-            FixType(field.FieldType);
-            FixAttributes(field.CustomAttributes);
-        }
-
-        void FixAttributes(Collection<CustomAttribute> attributes)
-        {
-            foreach (var attr in attributes)
-            {
-                FixType(attr.AttributeType);
-
-                foreach (var ca in attr.ConstructorArguments)
-                    FixType(ca.Type);
-
-                foreach (var fld in attr.Fields)
-                {
-                    FixType(fld.Argument.Type);
-                }
-
-                foreach (var prop in attr.Properties)
-                    FixType(prop.Argument.Type);
-            }
-        }
-
-        public override void Relink(MethodDefinition method)
-        {
-            base.Relink(method);
-
-            foreach (var prm in method.Parameters)
-            {
-
-                FixType(prm.ParameterType);
-                FixAttributes(prm.CustomAttributes);
-            }
-
-            FixAttributes(method.CustomAttributes);
-        }
-
-        public override void Relink(MethodDefinition method, ParameterDefinition parameter)
-        {
-            base.Relink(method, parameter);
-            FixType(parameter.ParameterType);
-        }
-
-        public override void Relink(MethodDefinition method, VariableDefinition variable)
-        {
-            base.Relink(method, variable);
-            FixType(variable.VariableType);
-        }
-
-        public override void Relink(PropertyDefinition property)
-        {
-            base.Relink(property);
-            FixType(property.PropertyType);
         }
     }
 }
