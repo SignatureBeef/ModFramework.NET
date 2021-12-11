@@ -38,18 +38,18 @@ namespace ModFramework.Relinker
             }
         }
 
-        void CheckType<TRef>(TRef type, Action<TRef>? update = null)
+        bool CheckType<TRef>(TRef type, Action<TRef>? update = null)
             where TRef : TypeReference
         {
-            var original = type;
+            bool changed = false;
             if (type.IsNested)
             {
-                CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
+                changed |= CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
             }
-            else if (type is TypeSpecification ts)
-            {
-                CheckType(ts.ElementType);
-            }
+            //else if (type is TypeSpecification ts)
+            //{
+            //    CheckType(ts.ElementType);
+            //}
             else if (type is GenericParameter gp)
             {
                 FixAttributes(gp.CustomAttributes);
@@ -61,35 +61,42 @@ namespace ModFramework.Relinker
             {
                 if (genericInstanceType.HasGenericArguments)
                     for (var i = 0; i < genericInstanceType.GenericArguments.Count; i++)
-                        CheckType(
+                        changed |= CheckType(
                             genericInstanceType.GenericArguments[i],
                             nr => genericInstanceType.GenericArguments[i] = nr
                         );
             }
             else if (type is ArrayType arrayType)
             {
-                CheckType(arrayType.ElementType, ntype => type = (TRef)(object)new ArrayType(ntype, arrayType.Rank));
+                changed |= CheckType(arrayType.ElementType, ntype => type = (TRef)(object)new ArrayType(ntype, arrayType.Rank));
             }
             else if (type is ByReferenceType byRefType)
             {
-                CheckType(byRefType.ElementType, ntype => type = (TRef)(object)new ByReferenceType(ntype));
+                changed |= CheckType(byRefType.ElementType, ntype => type = (TRef)(object)new ByReferenceType(ntype));
             }
             else
             {
                 if (type.HasGenericParameters)
                     for (int i = 0; i < type.GenericParameters.Count; i++)
                     {
-                        CheckType(
+                        changed |= CheckType(
                             type.GenericParameters[i],
                             nr => type.GenericParameters[i] = nr
                         );
                     }
 
-                type = (TRef)(object)RelinkType(type);
+                var new_type = (TRef)(object)RelinkType(type);
+                if(new_type != type)
+                {
+                    changed = true;
+                }
+                type = new_type;
             }
 
-            if (type != original && update is not null)
+            if (changed && update is not null)
                 update(type);
+
+            return changed;
         }
 
         public abstract TypeReference RelinkType(TypeReference typeReference);
@@ -207,6 +214,9 @@ namespace ModFramework.Relinker
         public override void Relink(MethodDefinition method)
         {
             base.Relink(method);
+
+            CheckType(method.DeclaringType, nt => method.DeclaringType = nt);
+            CheckType(method.ReturnType, nt => method.ReturnType = nt);
 
             foreach (var prm in method.Parameters)
             {
