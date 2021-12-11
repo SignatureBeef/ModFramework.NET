@@ -121,12 +121,16 @@ namespace ModFramework.Relinker
                 _SystemRefsOutputFolder = value;
             }
         }
+        
+        public bool ThrowResolveFailure { get; set; }
 
+        // TODO replace these gross things
         public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, IEnumerable<string> searchDirectories, params string[] inputs)
         {
             PostProcessCoreLib(outputFolder, resourcesFolder, searchDirectories, null, inputs);
         }
 
+        // TODO replace these gross things
         public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, IEnumerable<string>? searchDirectories, CoreLibRelinker? task, params string[] inputs)
         {
             if (String.IsNullOrWhiteSpace(outputFolder))
@@ -276,7 +280,7 @@ namespace ModFramework.Relinker
             return null;
         }
 
-        AssemblyNameReference ResolveAssembly(TypeReference type)
+        AssemblyNameReference? ResolveAssembly(TypeReference type)
         {
             var res = Resolve?.Invoke(type);
             if (res is null)
@@ -295,12 +299,13 @@ namespace ModFramework.Relinker
                     if (systemMatch is not null)
                         return systemMatch;
 
-                    throw new Exception($"Relink failed. Unable to handle {type.FullName}");
+                    if (ThrowResolveFailure)
+                        throw new Exception($"Relink failed. Unable to resolve {type.FullName}");
                 }
                 else throw new Exception($"{type.Scope.GetType().FullName} is not handled.");
             }
 
-            if (res.Name == "mscorlib" || res.Name == "System.Private.CoreLib")
+            if (res?.Name == "mscorlib" || res?.Name == "System.Private.CoreLib")
                 throw new Exception($"Relink failed, must not be corelib");
 
             return res;
@@ -329,20 +334,22 @@ namespace ModFramework.Relinker
             )
             {
                 var asm = ResolveAssembly(type);
-
-                // transition period (until i get the new roslyn package working wrt nullattrs)
-                // we must find the highest package, because System.Runtime can have v5 + v6
-                var existing = type.Module.AssemblyReferences
-                    .OrderByDescending(x => x.Version)
-                    .FirstOrDefault(x => x.Name == asm.Name);
-                if (existing != null)
+                if (asm is not null)
                 {
-                    type.Scope = existing;
-                }
-                else
-                {
-                    type.Scope = asm;
-                    type.Module.AssemblyReferences.Add(asm);
+                    // transition period (until i get the new roslyn package working wrt nullattrs)
+                    // we must find the highest package, because System.Runtime can have v5 + v6
+                    var existing = type.Module.AssemblyReferences
+                        .OrderByDescending(x => x.Version)
+                        .FirstOrDefault(x => x.Name == asm.Name);
+                    if (existing != null)
+                    {
+                        type.Scope = existing;
+                    }
+                    else
+                    {
+                        type.Scope = asm;
+                        type.Module.AssemblyReferences.Add(asm);
+                    }
                 }
             }
             //else if (type.FullName.Contains("System.Runtime.CompilerServices.NullableAttribute"))
