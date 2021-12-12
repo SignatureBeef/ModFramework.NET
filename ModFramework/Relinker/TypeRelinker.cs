@@ -62,6 +62,7 @@ namespace ModFramework.Relinker
 
             bool changed = false;
             var original = type;
+
             //if (type.IsNested)
             //{
             //    changed |= CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
@@ -202,6 +203,11 @@ namespace ModFramework.Relinker
 
             if (type.BaseType != null)
                 CheckType(type.BaseType, nt => type.BaseType = nt);
+
+            foreach(var intf in type.Interfaces)
+            {
+                CheckType(intf.InterfaceType, nt => intf.InterfaceType = nt);
+            }
         }
 
         public override void Relink(EventDefinition typeEvent)
