@@ -176,6 +176,10 @@ namespace ModFramework
 
         public override void Dispose()
         {
+            foreach(var task in TaskList)
+                task.Dispose();
+            TaskList.Clear();
+
             Modifier.Apply(ModType.Shutdown, this);
             base.Dispose();
         }

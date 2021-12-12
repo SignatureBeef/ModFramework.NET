@@ -11,10 +11,18 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public abstract class TypeRelinker : RelinkTask
     {
+        private HashSet<TypeReference> cache = new HashSet<TypeReference>();
+
         public override void Registered()
         {
             base.Registered();
             OnInit();
+        }
+
+        protected override void Cleanup()
+        {
+            base.Cleanup();
+            cache.Clear();
         }
 
         protected virtual void OnInit()
@@ -41,30 +49,37 @@ namespace ModFramework.Relinker
         bool CheckType<TRef>(TRef type, Action<TRef>? update = null)
             where TRef : TypeReference
         {
+            if (cache.Contains(type)) return false;
+            cache.Add(type);
+
             bool changed = false;
             if (type.IsNested)
             {
                 changed |= CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
             }
-            //else if (type is TypeSpecification ts)
-            //{
-            //    CheckType(ts.ElementType);
-            //}
+            else if (type is TypeSpecification ts)
+            {
+                CheckType(ts.ElementType);
+            }
             else if (type is GenericParameter gp)
             {
                 FixAttributes(gp.CustomAttributes);
 
                 foreach (var prm in gp.GenericParameters)
+                {
                     CheckType(prm);
+                }
             }
             else if (type is GenericInstanceType genericInstanceType)
             {
                 if (genericInstanceType.HasGenericArguments)
                     for (var i = 0; i < genericInstanceType.GenericArguments.Count; i++)
+                    {
                         changed |= CheckType(
                             genericInstanceType.GenericArguments[i],
                             nr => genericInstanceType.GenericArguments[i] = nr
                         );
+                    }
             }
             else if (type is ArrayType arrayType)
             {
@@ -85,8 +100,8 @@ namespace ModFramework.Relinker
                         );
                     }
 
-                var new_type = (TRef)(object)RelinkType(type);
-                if(new_type != type)
+                var new_type = (TRef)RelinkType(type);
+                if (new_type != type)
                 {
                     changed = true;
                 }

@@ -19,13 +19,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod;
+using System;
 using System.Collections.Generic;
 
 namespace ModFramework.Relinker
 {
     [MonoMod.MonoModIgnore]
-    public abstract class RelinkTask
+    public abstract class RelinkTask : IDisposable
     {
+        private bool disposedValue;
+
         public MonoModder? Modder { get; set; }
         public IRelinkProvider? RelinkProvider { get; set; }
         public virtual int Order { get; set; } = 100;
@@ -46,6 +49,38 @@ namespace ModFramework.Relinker
         public virtual void Relink(PropertyDefinition property) { }
         public virtual void Relink(MethodBody body, Instruction instr) { }
         public virtual void Relink(EventDefinition typeEvent) { }
+
+        protected virtual void Cleanup() { }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: dispose managed state (managed objects)
+                    Cleanup();
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: set large fields to null
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+        // ~RelinkTask()
+        // {
+        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        //     Dispose(disposing: false);
+        // }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 
     [MonoMod.MonoModIgnore]
