@@ -94,7 +94,7 @@ namespace ModFramework.Modules.CSharp
 
                 foreach (var ref_file in refs)
                 {
-                    var full_path = Path.Combine(Environment.CurrentDirectory, ref_file);
+                    var full_path = ResolveFile(ref_file);
                     var sys_path = Path.Combine(assemblyPath, ref_file);
 
                     if (File.Exists(full_path))
@@ -199,7 +199,7 @@ namespace ModFramework.Modules.CSharp
                 if (!File.Exists(path))
                     path = Path.Combine(AppContext.BaseDirectory, filename);
             }
-            return path;
+            return new FileInfo(path).FullName;
         }
 
         public IEnumerable<string> GetReferencedAssemblies()
