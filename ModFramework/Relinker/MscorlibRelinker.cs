@@ -163,7 +163,7 @@ namespace ModFramework.Relinker
             return res;
         }
 
-        public override TypeReference RelinkType(TypeReference type)
+        public override bool RelinkType<TRef>(ref TRef type)
         {
             if (type.Scope.Name == "netstandard"
                    || type.Scope.Name == "System.Private.CoreLib"
@@ -181,8 +181,9 @@ namespace ModFramework.Relinker
                     type.Scope = asm;
                     type.Module.AssemblyReferences.Add(asm);
                 }
+                return false;
             }
-            return type;
+            return false;
         }
     }
 }

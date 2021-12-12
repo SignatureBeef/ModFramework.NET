@@ -11,7 +11,8 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public abstract class TypeRelinker : RelinkTask
     {
-        private HashSet<TypeReference> cache = new HashSet<TypeReference>();
+        private HashSet<TypeReference> NoChangeCache = new HashSet<TypeReference>();
+        private Dictionary<TypeReference, TypeReference> ChangeCache = new Dictionary<TypeReference, TypeReference>();
 
         public override void Registered()
         {
@@ -22,7 +23,8 @@ namespace ModFramework.Relinker
         protected override void Cleanup()
         {
             base.Cleanup();
-            cache.Clear();
+            ChangeCache.Clear();
+            NoChangeCache.Clear();
         }
 
         protected virtual void OnInit()
@@ -49,15 +51,22 @@ namespace ModFramework.Relinker
         bool CheckType<TRef>(TRef type, Action<TRef>? update = null)
             where TRef : TypeReference
         {
-            if (cache.Contains(type)) return false;
-            cache.Add(type);
+            if (NoChangeCache.Contains(type)) return false;
+
+            if (ChangeCache.TryGetValue(type, out TypeReference? tref))
+            {
+                if (update is not null)
+                    update((TRef)tref);
+                return true;
+            }
 
             bool changed = false;
-            if (type.IsNested)
-            {
-                changed |= CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
-            }
-            else if (type is TypeSpecification ts)
+            var original = type;
+            //if (type.IsNested)
+            //{
+            //    changed |= CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
+            //}
+            if (type is TypeSpecification ts)
             {
                 CheckType(ts.ElementType);
             }
@@ -91,22 +100,23 @@ namespace ModFramework.Relinker
             }
             else
             {
-                if (type.HasGenericParameters)
-                    for (int i = 0; i < type.GenericParameters.Count; i++)
-                    {
-                        changed |= CheckType(
-                            type.GenericParameters[i],
-                            nr => type.GenericParameters[i] = nr
-                        );
-                    }
+                // TODO determine if this is needed anymore. causes recursion issues but i dont see evidence its needed anymore
+                //if (type.HasGenericParameters)
+                //    for (int i = 0; i < type.GenericParameters.Count; i++)
+                //    {
+                //        changed |= CheckType(
+                //            type.GenericParameters[i],
+                //            nr => type.GenericParameters[i] = nr
+                //        );
+                //    }
 
-                var new_type = (TRef)RelinkType(type);
-                if (new_type != type)
-                {
-                    changed = true;
-                }
-                type = new_type;
+                changed |= RelinkType(ref type);
             }
+
+            if (changed)
+                ChangeCache[original] = type;
+            else
+                NoChangeCache.Add(type);
 
             if (changed && update is not null)
                 update(type);
@@ -114,7 +124,7 @@ namespace ModFramework.Relinker
             return changed;
         }
 
-        public abstract TypeReference RelinkType(TypeReference typeReference);
+        public abstract bool RelinkType<TRef>(ref TRef typeReference) where TRef : TypeReference;
 
         public void Relink(Instruction instr)
         {
