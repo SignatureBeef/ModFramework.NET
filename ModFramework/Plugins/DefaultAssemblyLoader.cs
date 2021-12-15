@@ -24,7 +24,7 @@ namespace ModFramework.Plugins
 {
     public class DefaultAssemblyLoader : IAssemblyLoader
     {
-        public Assembly Load(string path)
+        public virtual Assembly Load(string path)
         {
             path = Path.GetFullPath(path);
 
@@ -49,7 +49,7 @@ namespace ModFramework.Plugins
             return Load(new MemoryStream(content));
         }
 
-        public Assembly Load(MemoryStream assembly, MemoryStream? symbols = null)
+        public virtual Assembly Load(MemoryStream assembly, MemoryStream? symbols = null)
             => AssemblyLoadContext.Default.LoadFromStream(assembly, symbols);
     }
 }

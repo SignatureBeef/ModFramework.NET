@@ -29,6 +29,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 
 namespace ModFramework.Modules.CSharp
 {
@@ -48,6 +49,9 @@ namespace ModFramework.Modules.CSharp
 
         public bool AutoLoadAssemblies { get; set; } = true;
         public MarkdownDocumentor? MarkdownDocumentor { get; set; }
+
+        public static AssemblyLoadContext AssemblyContextDefault { get; set; } = AssemblyLoadContext.Default;
+        public AssemblyLoadContext AssemblyContext { get; set; } = AssemblyContextDefault;
 
         public CSharpLoader SetAutoLoadAssemblies(bool autoLoad)
         {
@@ -216,7 +220,7 @@ namespace ModFramework.Modules.CSharp
                 Assembly? assembly = null;
                 try
                 {
-                    assembly = Assembly.LoadFile(file);
+                    assembly = AssemblyContext.LoadFromAssemblyPath(file);
                 }
                 catch(Exception ex)
                 {
