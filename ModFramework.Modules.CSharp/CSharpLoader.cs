@@ -21,7 +21,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
-using Microsoft.Extensions.DependencyModel;
 using ModFramework.Plugins;
 using System;
 using System.Collections.Generic;
@@ -52,6 +51,9 @@ namespace ModFramework.Modules.CSharp
 
         public static AssemblyLoadContext AssemblyContextDefault { get; set; } = AssemblyLoadContext.Default;
         public AssemblyLoadContext AssemblyContext { get; set; } = AssemblyContextDefault;
+
+        public static List<string> DefaultSearchPaths { get; set; } = new List<string>() { "bin" };
+        public List<string> SearchPaths { get; set; } = DefaultSearchPaths;
 
         public CSharpLoader SetAutoLoadAssemblies(bool autoLoad)
         {
@@ -94,10 +96,13 @@ namespace ModFramework.Modules.CSharp
                 if (OnExternalRefFound?.Invoke(refs_path) == false)
                     continue;
 
-                var refs = File.ReadLines(refs_path);
+                var refs = File.ReadLines(refs_path)
+                    .Select(l => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? l.Replace('/', Path.DirectorySeparatorChar) : l);
 
                 foreach (var ref_file in refs)
                 {
+                    var filename = Path.GetFileName(ref_file);
+
                     var full_path = ResolveFile(ref_file);
                     var sys_path = Path.Combine(assemblyPath, ref_file);
 
@@ -114,19 +119,19 @@ namespace ModFramework.Modules.CSharp
                         {
                             var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "osx-x64");
                             if (Directory.Exists(x64))
-                                matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
+                                matches = Directory.GetFiles(x64, "*" + filename, SearchOption.AllDirectories);
                         }
                         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                         {
                             var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64");
                             if (Directory.Exists(x64))
-                                matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
+                                matches = Directory.GetFiles(x64, "*" + filename, SearchOption.AllDirectories);
                         }
                         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
                             var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64");
                             if (Directory.Exists(x64))
-                                matches = Directory.GetFiles(x64, "*" + ref_file, SearchOption.AllDirectories);
+                                matches = Directory.GetFiles(x64, "*" + filename, SearchOption.AllDirectories);
                         }
 
                         if (matches.Any())
@@ -194,15 +199,32 @@ namespace ModFramework.Modules.CSharp
         public string ResolveFile(string path)
         {
             var dir = Path.GetDirectoryName(path);
+            var filename = Path.GetFileName(path);
+
+            foreach (var searchPath in SearchPaths)
+            {
+                var spmatches = Directory.GetFiles(searchPath, filename, SearchOption.AllDirectories);
+                if (spmatches.Any())
+                {
+                    var match = spmatches.First();
+                    if (File.Exists(match))
+                    {
+                        return new FileInfo(match).FullName;
+                    }
+                }
+            }
+
             if (String.IsNullOrWhiteSpace(dir))
             {
-                var filename = Path.GetFileName(path);
-                path = Path.Combine(Environment.CurrentDirectory, filename);
                 if (!File.Exists(path))
+                    path = Path.Combine(Environment.CurrentDirectory, filename);
+                else if (!File.Exists(path))
                     path = Path.Combine(Environment.CurrentDirectory, "bin", filename);
-                if (!File.Exists(path))
+                else if (!File.Exists(path))
                     path = Path.Combine(AppContext.BaseDirectory, filename);
             }
+            else path = Path.Combine(dir, filename);
+
             return new FileInfo(path).FullName;
         }
 
@@ -222,7 +244,7 @@ namespace ModFramework.Modules.CSharp
                 {
                     assembly = AssemblyContext.LoadFromAssemblyPath(file);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
 #if DEBUG
                     System.Diagnostics.Debug.WriteLine($"Skipping system ref: {Path.GetFileName(file)}\n{ex}");

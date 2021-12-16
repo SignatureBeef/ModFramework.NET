@@ -1,21 +1,23 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.810.2
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31919.166
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModFramework", "ModFramework\ModFramework.csproj", "{D5654D22-916D-4EE5-83AB-309C0C86E748}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModFramework", "ModFramework\ModFramework.csproj", "{D5654D22-916D-4EE5-83AB-309C0C86E748}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModFramework.Modules.CSharp", "ModFramework.Modules.CSharp\ModFramework.Modules.CSharp.csproj", "{6BCE2CD4-863D-42AB-9497-E35906A1C1AB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModFramework.Modules.CSharp", "ModFramework.Modules.CSharp\ModFramework.Modules.CSharp.csproj", "{6BCE2CD4-863D-42AB-9497-E35906A1C1AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModFramework.Modules.ClearScript", "ModFramework.Modules.ClearScript\ModFramework.Modules.ClearScript.csproj", "{FACF6D84-9715-46BD-AD97-C8497554A28A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModFramework.Modules.ClearScript", "ModFramework.Modules.ClearScript\ModFramework.Modules.ClearScript.csproj", "{FACF6D84-9715-46BD-AD97-C8497554A28A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModFramework.Modules.Lua", "ModFramework.Modules.Lua\ModFramework.Modules.Lua.csproj", "{9E8E6F6F-8F9A-4AF9-BC01-E9A1D60FEADE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModFramework.Modules.Lua", "ModFramework.Modules.Lua\ModFramework.Modules.Lua.csproj", "{9E8E6F6F-8F9A-4AF9-BC01-E9A1D60FEADE}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{77411345-4B7F-4A03-B0EB-F2FAB41892B3}"
 	ProjectSection(SolutionItems) = preProject
 		LICENSE.txt = LICENSE.txt
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModFramework.Tests", "ModFramework.Tests\ModFramework.Tests.csproj", "{7D5749DA-A6DC-4F93-BDA0-AADF9EAC65CA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{9E8E6F6F-8F9A-4AF9-BC01-E9A1D60FEADE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9E8E6F6F-8F9A-4AF9-BC01-E9A1D60FEADE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9E8E6F6F-8F9A-4AF9-BC01-E9A1D60FEADE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7D5749DA-A6DC-4F93-BDA0-AADF9EAC65CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D5749DA-A6DC-4F93-BDA0-AADF9EAC65CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D5749DA-A6DC-4F93-BDA0-AADF9EAC65CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D5749DA-A6DC-4F93-BDA0-AADF9EAC65CA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

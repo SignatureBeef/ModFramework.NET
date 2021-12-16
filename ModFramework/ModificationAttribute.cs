@@ -113,11 +113,11 @@ namespace ModFramework
                                 Console.WriteLine(ex);
                             }
                             if (modificationAttr != null)
-                                {
-                                    modificationAttr.MethodBase = method;
-                                    modificationAttr.UniqueName = method.Name.Replace("<<Main>$>g__", "").Replace("<$Main>g__", "").Replace("|0_0", "");
-                                    yield return modificationAttr;
-                                }
+                            {
+                                modificationAttr.MethodBase = method;
+                                modificationAttr.UniqueName = method.Name.Replace("<<Main>$>g__", "").Replace("<$Main>g__", "").Replace("|0_0", "");
+                                yield return modificationAttr;
+                            }
                         }
                     }
                 }

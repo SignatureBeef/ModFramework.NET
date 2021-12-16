@@ -20,6 +20,10 @@ using System.Reflection;
 
 namespace ModFramework.Plugins
 {
+    /// <summary>
+    /// Defines the bare minimum spec for ModFw to load assemblies
+    /// </summary>
+    /// <remarks>ModFw defines its own loaders because it used to support across multiple frameworks and AssemblyLoadContext is not always available</remarks>
     public interface IAssemblyLoader
     {
         Assembly Load(string path);
