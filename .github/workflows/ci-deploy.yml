@@ -23,7 +23,7 @@ jobs:
     - name: Build
       run: dotnet build ModFramework.sln --configuration Release --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal --configuration Release
 
     # Publish
     - name: Push ModFramework
