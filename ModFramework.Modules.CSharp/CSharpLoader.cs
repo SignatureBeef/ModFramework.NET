@@ -203,6 +203,12 @@ namespace ModFramework.Modules.CSharp
 
             foreach (var searchPath in SearchPaths)
             {
+                if (!Directory.Exists(searchPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"Skipping search path as it doesnt exist: {searchPath}");
+                    continue;
+                }
+
                 var spmatches = Directory.GetFiles(searchPath, filename, SearchOption.AllDirectories);
                 if (spmatches.Any())
                 {
