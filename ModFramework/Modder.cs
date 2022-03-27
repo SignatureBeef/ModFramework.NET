@@ -20,6 +20,7 @@ using ModFramework.Relinker;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod;
+using MonoMod.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -142,6 +143,10 @@ namespace ModFramework
             base.PatchRefsInMethod(method);
 
             RunTasks(t => t.Relink(method));
+
+            // pending: https://github.com/MonoMod/MonoMod/pull/92
+            for (int i = 0; i < method.MethodReturnType.CustomAttributes.Count; i++)
+                PatchRefsInCustomAttribute(method.MethodReturnType.CustomAttributes[i] = method.MethodReturnType.CustomAttributes[i].Relink(Relinker, method));
         }
 
         public override void AutoPatch()

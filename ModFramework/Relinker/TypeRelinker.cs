@@ -257,6 +257,9 @@ namespace ModFramework.Relinker
             }
 
             FixAttributes(method.CustomAttributes);
+
+            CheckType(method.MethodReturnType.ReturnType, nt => method.MethodReturnType.ReturnType = nt);
+            FixAttributes(method.MethodReturnType.CustomAttributes);
         }
 
         public override void Relink(MethodDefinition method, ParameterDefinition parameter)
