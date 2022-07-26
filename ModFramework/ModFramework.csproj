@@ -19,8 +19,8 @@
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="MonoMod" Version="22.6.3.1" />
-		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.6.3.1" />
+		<PackageReference Include="MonoMod" Version="22.5.1.1" />
+		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.5.1.1" />
 		<PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">
