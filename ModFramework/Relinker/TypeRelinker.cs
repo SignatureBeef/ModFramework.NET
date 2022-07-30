@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
+using System;
+using System.Collections.Generic;
 
 namespace ModFramework.Relinker
 {
@@ -195,6 +193,24 @@ namespace ModFramework.Relinker
             base.Relink(body, instr);
 
             Relink(instr);
+
+            if (body.HasVariables)
+            {
+                foreach (var variable in body.Variables)
+                {
+                    if (variable.VariableType != null)
+                        CheckType(variable.VariableType, nt => variable.VariableType = nt);
+                }
+            }
+
+            if (body.HasExceptionHandlers)
+            {
+                foreach (var handler in body.ExceptionHandlers)
+                {
+                    if (handler.CatchType != null)
+                        CheckType(handler.CatchType, nt => handler.CatchType = nt);
+                }
+            }
         }
 
         public override void Relink(TypeDefinition type)
@@ -204,7 +220,7 @@ namespace ModFramework.Relinker
             if (type.BaseType != null)
                 CheckType(type.BaseType, nt => type.BaseType = nt);
 
-            foreach(var intf in type.Interfaces)
+            foreach (var intf in type.Interfaces)
             {
                 CheckType(intf.InterfaceType, nt => intf.InterfaceType = nt);
             }
@@ -251,7 +267,6 @@ namespace ModFramework.Relinker
 
             foreach (var prm in method.Parameters)
             {
-
                 CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
                 FixAttributes(prm.CustomAttributes);
             }
