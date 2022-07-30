@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 using Mono.Cecil;
+using System;
 using System.IO;
 using System.Linq;
 
@@ -25,6 +26,54 @@ namespace ModFramework
     [MonoMod.MonoModIgnore]
     public class ResourceExtractor
     {
+        /// <summary>
+        /// Extracts embedded resources to a folder
+        /// </summary>
+        /// <param name="assembly">Assembly to find resources within</param>
+        /// <param name="extractionFolder">Destination to save files</param>
+        /// <param name="onOverrideSave">Determine if a embedded resource needs saving</param>
+        public void Extract(AssemblyDefinition assembly, string extractionFolder, Func<Resource, bool>? onOverrideSave = null)
+        {
+            if (Directory.Exists(extractionFolder)) Directory.Delete(extractionFolder, true);
+            Directory.CreateDirectory(extractionFolder);
+
+            foreach (var module in assembly.Modules)
+            {
+                if (module.HasResources)
+                {
+                    foreach (var resource in module.Resources.ToArray())
+                    {
+                        if (resource.ResourceType == ResourceType.Embedded)
+                        {
+                            var er = resource as EmbeddedResource;
+                            var data = er?.GetResourceData();
+
+                            if (data is not null && data.Length > 2)
+                            {
+                                bool is_pe = data.Take(2).SequenceEqual(new byte[] { 77, 90 }); // MZ
+                                if (is_pe || (onOverrideSave is not null && onOverrideSave(resource)))
+                                {
+                                    var ms = new MemoryStream(data);
+                                    var asm = AssemblyDefinition.ReadAssembly(ms);
+
+                                    File.WriteAllBytes(Path.Combine(extractionFolder, $"{asm.Name.Name}.dll"), data);
+                                    module.Resources.Remove(resource);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Extracts embedded resources to a folder
+        /// </summary>
+        /// <param name="inputFile">Path to the assembly</param>
+        /// <param name="resourcesFolder">Destination to save files</param>
+        /// <returns>Extraction folder</returns>
+        /// <exception cref="FileNotFoundException"></exception>
+        /// <exception cref="DirectoryNotFoundException"></exception>
         public string Extract(string inputFile, string? resourcesFolder = null)
         {
             if (string.IsNullOrEmpty(inputFile) || !File.Exists(inputFile)) throw new FileNotFoundException("Resource assembly was not found", inputFile);
@@ -37,37 +86,7 @@ namespace ModFramework
             using (var asmms = new MemoryStream(File.ReadAllBytes(inputFile)))
             {
                 var def = AssemblyDefinition.ReadAssembly(asmms);
-
-                if (Directory.Exists(extractionFolder)) Directory.Delete(extractionFolder, true);
-                Directory.CreateDirectory(extractionFolder);
-
-                foreach (var module in def.Modules)
-                {
-                    if (module.HasResources)
-                    {
-                        foreach (var resource in module.Resources.ToArray())
-                        {
-                            if (resource.ResourceType == ResourceType.Embedded)
-                            {
-                                var er = resource as EmbeddedResource;
-                                var data = er?.GetResourceData();
-
-                                if (data is not null && data.Length > 2)
-                                {
-                                    bool is_pe = data.Take(2).SequenceEqual(new byte[] { 77, 90 }); // MZ
-                                    if (is_pe)
-                                    {
-                                        var ms = new MemoryStream(data);
-                                        var asm = AssemblyDefinition.ReadAssembly(ms);
-
-                                        File.WriteAllBytes(Path.Combine(extractionFolder, $"{asm.Name.Name}.dll"), data);
-                                        module.Resources.Remove(resource);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                Extract(def, extractionFolder);
             }
 
             return extractionFolder;
