@@ -406,7 +406,7 @@ namespace ModFramework.Modules.CSharp
 
             return Modder?.MarkdownDocumentor;
         }
-
+         
         void ProcessXmlComment(string filePath, string type, SyntaxTrivia trivia)
         {
             var xml_node = trivia.GetStructure();
@@ -423,14 +423,14 @@ namespace ModFramework.Modules.CSharp
                         {
                             if (item is XmlTextSyntax xts)
                             {
-                                var comments = String.Join(string.Empty, xts.TextTokens.Select(x => x.Text));
-                                var cleaned = String.Join(" ", comments.Trim().Split(Environment.NewLine));
+                                var comments = String.Join(string.Empty, xts.TextTokens.Select(x => x.Text.Trim()));
+                                var cleaned = String.Join(" ", comments.Trim().Split('\n').Select(x => x.Trim()));
                                 var doc = GetMarkdownDocumentor();
 
                                 if (doc != null && !doc.Find<BasicComment>(r => r.FilePath == filePath && r.Comments == cleaned).Any())
                                     doc.Add(new BasicComment()
                                     {
-                                        Comments = String.Join(" ", comments.Trim().Split(Environment.NewLine)),
+                                        Comments = String.Join(" ", comments.Trim().Split('\n').Select(x => x.Trim())),
                                         Type = type,
                                         FilePath = filePath,
                                     });

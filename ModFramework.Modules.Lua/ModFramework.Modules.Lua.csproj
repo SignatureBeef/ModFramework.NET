@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
-		<PackageVersion>1.0.42-alpha</PackageVersion>
-		<Version>1.0.42.0-alpha</Version>
+    <TargetFrameworks>net6.0;netstandard2.0;netstandard2.1</TargetFrameworks>
+		<PackageVersion>1.0.43-alpha</PackageVersion>
+		<Version>1.0.43.0-alpha</Version>
 		<PackageId>ModFramework.Modules.Lua</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -17,8 +17,8 @@
 		<PackageReleaseNotes>A plugin for ModFramework that loads Lua scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
 		<LangVersion>9.0</LangVersion>
-		<Nullable>enable</Nullable>
-	</PropertyGroup>
+		<Nullable>enable</Nullable>	
+</PropertyGroup>
 	<ItemGroup>
 	</ItemGroup>
 	<ItemGroup>
