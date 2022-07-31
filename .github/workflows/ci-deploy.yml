@@ -26,10 +26,10 @@ jobs:
       run: dotnet test --no-build --verbosity normal --configuration Release
 
     # Publish
-    # - name: Push ModFramework
-      # run: dotnet nuget push ModFramework/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
-    # - name: Push ModFramework.Modules.CSharp
-      # run: dotnet nuget push ModFramework.Modules.CSharp/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
+    - name: Push ModFramework
+      run: dotnet nuget push ModFramework/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
+    - name: Push ModFramework.Modules.CSharp
+      run: dotnet nuget push ModFramework.Modules.CSharp/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
     - name: Push ModFramework.Modules.ClearScript
       run: dotnet nuget push ModFramework.Modules.ClearScript/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
     - name: Push ModFramework.Modules.Lua
