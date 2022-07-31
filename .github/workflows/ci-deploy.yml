@@ -27,10 +27,10 @@ jobs:
 
     # Publish
     # - name: Push ModFramework
-      # run: dotnet nuget push ModFramework/bin/Release/*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json
+      # run: dotnet nuget push ModFramework/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
     # - name: Push ModFramework.Modules.CSharp
-      # run: dotnet nuget push ModFramework.Modules.CSharp/bin/Release/*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json
+      # run: dotnet nuget push ModFramework.Modules.CSharp/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
     - name: Push ModFramework.Modules.ClearScript
-      run: dotnet nuget push ModFramework.Modules.ClearScript/bin/Release/*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push ModFramework.Modules.ClearScript/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
     - name: Push ModFramework.Modules.Lua
-      run: dotnet nuget push ModFramework.Modules.Lua/bin/Release/*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push ModFramework.Modules.Lua/bin/Release/*.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
