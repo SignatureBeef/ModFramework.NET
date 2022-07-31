@@ -18,6 +18,7 @@
 		<PreserveCompilationContext>true</PreserveCompilationContext>
 		<LangVersion>9.0</LangVersion>
 		<Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.2.0" />

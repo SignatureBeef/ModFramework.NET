@@ -17,6 +17,7 @@
 		<PackageReleaseNotes>Initial alpha version of the ModFramework.</PackageReleaseNotes>
 		<LangVersion>9.0</LangVersion>
 		<Nullable>enable</Nullable>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MonoMod" Version="22.5.1.1" />
