@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net6.0;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <PackageVersion>1.0.44-alpha</PackageVersion>
-    <Version>1.0.44.0-alpha</Version>
+    <PackageVersion>1.0.45-alpha</PackageVersion>
+    <Version>1.0.45.0-alpha</Version>
     <PackageId>ModFramework.Modules.Lua</PackageId>
     <Authors>DeathCradle</Authors>
     <PackOnBuild>true</PackOnBuild>

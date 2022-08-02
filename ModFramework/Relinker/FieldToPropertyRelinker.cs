@@ -22,6 +22,16 @@ using Mono.Cecil.Cil;
 
 namespace ModFramework.Relinker
 {
+    public class FieldToPropertyChangeEventArgs : EventArgs
+    {
+        public Instruction Instruction { get; set; }
+
+        public FieldToPropertyChangeEventArgs(Instruction instruction)
+        {
+            Instruction = instruction;
+        }
+    }
+
     [MonoMod.MonoModIgnore]
     public class FieldToPropertyRelinker : RelinkTask
     {
@@ -31,6 +41,8 @@ namespace ModFramework.Relinker
         MethodReference? getReference;
         MethodReference? setReference;
         TypeReference? returnTypeReference;
+
+        public event EventHandler<FieldToPropertyChangeEventArgs>? OnChanged;
 
         public FieldToPropertyRelinker(FieldDefinition field, PropertyDefinition property)
         {
@@ -84,7 +96,7 @@ namespace ModFramework.Relinker
                                     instr.OpCode = OpCodes.Call;
                                     instr.Operand = ResolveReference(this.setReference);
                                 }
-                                else if (instr.OpCode == OpCodes.Ldflda)
+                                else if (instr.OpCode == OpCodes.Ldflda || instr.OpCode == OpCodes.Ldsflda)
                                 {
                                     if (this.getReference is null) throw new ArgumentNullException(nameof(this.getReference));
                                     if (this.returnTypeReference is null) throw new ArgumentNullException(nameof(this.returnTypeReference));
@@ -100,6 +112,8 @@ namespace ModFramework.Relinker
                                     ilp.InsertAfter(instr, ilp.Create(OpCodes.Stloc, vrb));
                                 }
                                 else throw new NotImplementedException();
+
+                                OnChanged?.Invoke(this, new(instr));
                             }
                         }
                     }
