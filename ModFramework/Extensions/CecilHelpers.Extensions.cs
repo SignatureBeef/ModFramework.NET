@@ -59,11 +59,11 @@ namespace ModFramework
         public static MemberReference GetReference(this MonoMod.MonoModder modder, Expression<Action> reference)
             => modder.Module.GetReference(reference);
 
-        public static TypeDefinition GetDefinition<TType>(this ModuleDefinition module)
+        public static TypeDefinition GetDefinition<TType>(this ModuleDefinition module, bool follow = false)
         {
             // resolve via the module meta data, otherwise try external refs (ie System.*)
             var target = typeof(TType).FullName;
-            var def = module.Types.SingleOrDefault(t => t.FullName == target);
+            var def = module.Types.SingleOrDefault(t => t.FullName == target || (follow && t.FullName == target?.Replace("patch_", "")));
             if (def == null)
             {
                 var reference = module.ImportReference(typeof(TType));
@@ -86,7 +86,10 @@ namespace ModFramework
             {
                 var module = token.GetModule();
                 if (module is null) throw new Exception($"Failed to resolve token module: {methodReference}");
-                methodReference.DeclaringType = module.GetType(methodReference.DeclaringType.FullName);
+
+                var name = methodReference.DeclaringType.FullName;
+                if (followRedirect) name = name.Replace("patch_", "");
+                methodReference.DeclaringType = module.GetType(name);
 
                 if (followRedirect)
                 {
