@@ -59,6 +59,9 @@ namespace ModFramework
         public static MemberReference GetReference(this MonoMod.MonoModder modder, Expression<Action> reference)
             => modder.Module.GetReference(reference);
 
+        public static MemberReference GetReference(this MonoMod.MonoModder modder, MethodDefinition method)
+            => modder.Module.ImportReference(method);
+
         public static TypeDefinition GetDefinition<TType>(this ModuleDefinition module, bool follow = false)
         {
             // resolve via the module meta data, otherwise try external refs (ie System.*)
@@ -126,13 +129,13 @@ namespace ModFramework
             throw new System.Exception("Unable to find expression in assembly");
         }
 
-        public static MethodReference GetCoreLibMethod(this ModuleDefinition module, string @namespace, string type, string method)
+        public static MethodReference GetCoreLibMethod(this ModuleDefinition module, string @namespace, string type, string method, TypeReference? returnType = null)
         {
             var type_ref = new TypeReference(@namespace, type,
                 module.TypeSystem.String.Module,
                 module.TypeSystem.CoreLibrary
             );
-            return new MethodReference(method, module.TypeSystem.Void, type_ref);
+            return new MethodReference(method, returnType ?? module.TypeSystem.Void, type_ref);
         }
 
         public static void ReplaceTransfer(this Instruction current, Instruction newTarget, MethodDefinition originalMethod)
@@ -413,5 +416,137 @@ namespace ModFramework
             return assembly.CustomAttributes.SingleOrDefault(ca =>
                 ca.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
         }
+
+        /// <summary>
+        /// Ensures all members of the type are publicly accessible
+        /// </summary>
+        /// <param name="type">The type to be made accessible</param>
+        public static TypeDefinition MakePublic(this TypeDefinition type)
+        {
+            var state = true;
+            if (type.IsNestedFamily)
+            {
+                type.IsNestedFamily = false;
+                type.IsNestedPublic = true;
+                state = false;
+            }
+            if (type.IsNestedFamilyAndAssembly)
+            {
+                type.IsNestedFamilyAndAssembly = false;
+                type.IsNestedPublic = true;
+                state = false;
+            }
+            if (type.IsNestedFamilyOrAssembly)
+            {
+                type.IsNestedFamilyOrAssembly = false;
+                type.IsNestedPublic = true;
+                state = false;
+            }
+            if (type.IsNestedPrivate)
+            {
+                type.IsNestedPrivate = false;
+                type.IsNestedPublic = true;
+                state = false;
+            }
+
+            type.IsPublic = state;
+
+            foreach (var itm in type.Methods)
+                itm.MakePublic();
+
+            foreach (var itm in type.Fields)
+                itm.MakePublic();
+
+            foreach (var itm in type.Properties)
+                itm.MakePublic();
+
+            foreach (var nt in type.NestedTypes)
+                nt.MakePublic();
+
+            return type;
+        }
+
+        /// <summary>
+        /// Marks the method sas public
+        /// </summary>
+        /// <param name="method"></param>
+        public static MethodDefinition MakePublic(this MethodDefinition method)
+        {
+            method.IsPublic = true;
+            if (method.IsFamily) method.IsFamily = false;
+            if (method.IsFamilyAndAssembly) method.IsFamilyAndAssembly = false;
+            if (method.IsFamilyOrAssembly) method.IsFamilyOrAssembly = false;
+            if (method.IsPrivate) method.IsPrivate = false;
+            return method;
+        }
+
+        /// <summary>
+        /// Marks the field as public
+        /// </summary>
+        /// <param name="field"></param>
+        public static FieldDefinition MakePublic(this FieldDefinition field)
+        {
+            if (field.IsFamily) field.IsFamily = false;
+            if (field.IsFamilyAndAssembly) field.IsFamilyAndAssembly = false;
+            if (field.IsFamilyOrAssembly) field.IsFamilyOrAssembly = false;
+            if (field.IsPrivate)
+            {
+                if (field.DeclaringType.Events.Where(x => x.Name == field.Name).Count() == 0)
+                    field.IsPrivate = false;
+                else return field;
+            }
+
+            field.IsPublic = true;
+            return field;
+        }
+
+        /// <summary>
+        /// Marks the property as public
+        /// </summary>
+        /// <param name="property"></param>
+        public static PropertyDefinition MakePublic(this PropertyDefinition property)
+        {
+            if (null != property.GetMethod)
+                property.GetMethod.MakePublic();
+            if (null != property.SetMethod)
+                property.SetMethod.MakePublic();
+            return property;
+        }
+
+        /// <summary>
+        /// Get a field by name
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="name"></param>
+        /// <returns>Definition of the field</returns>
+        public static FieldDefinition Field(this TypeDefinition type, string name)
+            => type.Fields.Single(x => x.Name == name);
+
+        /// <summary>
+        /// Get a method by name
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="name"></param>
+        /// <returns>Definition of the method</returns>
+        public static MethodDefinition Method(this TypeDefinition type, string name)
+            => type.Methods.Single(x => x.Name == name);
+
+        /// <summary>
+        /// Get a event by name
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="name"></param>
+        /// <returns>Definition of the event</returns>
+        public static EventDefinition Event(this TypeDefinition type, string name)
+            => type.Events.Single(x => x.Name == name);
+
+        /// <summary>
+        /// Get a property by name
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="name"></param>
+        /// <returns>Definition of the property</returns>
+        public static PropertyDefinition Property(this TypeDefinition type, string name)
+            => type.Properties.Single(x => x.Name == name);
     }
 }
