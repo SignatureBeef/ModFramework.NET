@@ -20,36 +20,36 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Loader;
 
-namespace ModFramework.Plugins
+namespace ModFramework.Plugins;
+
+public class DefaultAssemblyLoader : IAssemblyLoader
 {
-    public class DefaultAssemblyLoader : IAssemblyLoader
+    public virtual Assembly Load(string path)
     {
-        public virtual Assembly Load(string path)
+        path = Path.GetFullPath(path);
+
+        // most likely better to have in the host app
+        //var resolver = new AssemblyDependencyResolver(path);
+        //AssemblyLoadContext.Default.Resolving += (AssemblyLoadContext arg1, AssemblyName arg2) =>
+        //{
+        //    string assemblyPath = resolver.ResolveAssemblyToPath(arg2);
+        //    if (assemblyPath != null)
+        //        return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
+        //    return null;
+        //};
+        var content = File.ReadAllBytes(path);
+
+        var path_symbols = Path.ChangeExtension(path, ".pdb");
+        if (File.Exists(path_symbols))
         {
-            path = Path.GetFullPath(path);
-
-            // most likely better to have in the host app
-            //var resolver = new AssemblyDependencyResolver(path);
-            //AssemblyLoadContext.Default.Resolving += (AssemblyLoadContext arg1, AssemblyName arg2) =>
-            //{
-            //    string assemblyPath = resolver.ResolveAssemblyToPath(arg2);
-            //    if (assemblyPath != null)
-            //        return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
-            //    return null;
-            //};
-            var content = File.ReadAllBytes(path);
-
-            var path_symbols = Path.ChangeExtension(path, ".pdb");
-            if(File.Exists(path_symbols))
-            {
-                var symbols = File.ReadAllBytes(path_symbols);
-                return Load(new MemoryStream(content), new MemoryStream(symbols));
-            }
-
-            return Load(new MemoryStream(content));
+            var symbols = File.ReadAllBytes(path_symbols);
+            return Load(new MemoryStream(content), new MemoryStream(symbols));
         }
 
-        public virtual Assembly Load(MemoryStream assembly, MemoryStream? symbols = null)
-            => AssemblyLoadContext.Default.LoadFromStream(assembly, symbols);
+        return Load(new MemoryStream(content));
     }
+
+    public virtual Assembly Load(MemoryStream assembly, MemoryStream? symbols = null)
+        => AssemblyLoadContext.Default.LoadFromStream(assembly, symbols);
 }
+

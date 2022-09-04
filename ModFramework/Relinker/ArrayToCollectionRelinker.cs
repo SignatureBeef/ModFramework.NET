@@ -66,9 +66,9 @@ namespace ModFramework.Relinker
             ICollectionDef = ICollectionRef.Resolve();
             CollectionDef = CollectionRef.Resolve();
 
-            ICollectionGen = new GenericInstanceType(ICollectionRef);
-            ICollectionTItem = new GenericInstanceType(ICollectionRef);
-            CollectionGen = new GenericInstanceType(CollectionRef);
+            ICollectionGen = new(ICollectionRef);
+            ICollectionTItem = new(ICollectionRef);
+            CollectionGen = new(CollectionRef);
 
             ICollectionGen.GenericArguments.Clear();
             ICollectionGen.GenericArguments.Add(type);

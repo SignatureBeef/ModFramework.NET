@@ -22,201 +22,200 @@ using System;
 using System.Linq;
 using static ModFramework.ModContext;
 
-namespace ModFramework.Relinker
+namespace ModFramework.Relinker;
+
+[MonoMod.MonoModIgnore]
+public class SystemType
 {
-    [MonoMod.MonoModIgnore]
-    public class SystemType
+    public string? FilePath { get; set; }
+    public AssemblyDefinition? Assembly { get; set; }
+    public ExportedType? Type { get; set; }
+
+    public AssemblyNameReference? AsNameReference() => Assembly?.AsNameReference();
+
+    public override string ToString() => Type?.ToString() ?? "";
+}
+
+public static partial class Extensions
+{
+    public static AssemblyNameReference AsNameReference(this AssemblyDefinition assembly)
     {
-        public string? FilePath { get; set; }
-        public AssemblyDefinition? Assembly { get; set; }
-        public ExportedType? Type { get; set; }
+        var name = assembly.Name;
+        return new(name.Name, name.Version)
+        {
+            PublicKey = name.PublicKey,
+            PublicKeyToken = name.PublicKeyToken,
+            Culture = name.Culture,
+            Hash = name.Hash,
+            HashAlgorithm = name.HashAlgorithm,
+            Attributes = name.Attributes
+        };
+    }
+}
 
-        public AssemblyNameReference? AsNameReference() => Assembly?.AsNameReference();
+[MonoMod.MonoModIgnore]
+public delegate AssemblyNameReference ResolveCoreLibHandler(TypeReference target);
 
-        public override string ToString() => Type?.ToString() ?? "";
+[MonoMod.MonoModIgnore]
+public class CoreLibRelinker : TypeRelinker
+{
+    protected CoreLibRelinker(ModFwModder modder) : base(modder)
+    {
     }
 
-    public static partial class Extensions
+    public IFrameworkResolver FrameworkResolver { get; set; } = new DefaultFrameworkResolver();
+
+    public event ResolveCoreLibHandler? Resolve;
+
+    public bool ThrowResolveFailure { get; set; }
+
+    private EApplyResult OnApplying(ModType modType, ModFwModder? modder)
     {
-        public static AssemblyNameReference AsNameReference(this AssemblyDefinition assembly)
+        if (modder is not null)
         {
-            var name = assembly.Name;
-            return new AssemblyNameReference(name.Name, name.Version)
+            if (modType == ModType.Shutdown)
             {
-                PublicKey = name.PublicKey,
-                PublicKeyToken = name.PublicKeyToken,
-                Culture = name.Culture,
-                Hash = name.Hash,
-                HashAlgorithm = name.HashAlgorithm,
-                Attributes = name.Attributes
-            };
-        }
-    }
-
-    [MonoMod.MonoModIgnore]
-    public delegate AssemblyNameReference ResolveCoreLibHandler(TypeReference target);
-
-    [MonoMod.MonoModIgnore]
-    public class CoreLibRelinker : TypeRelinker
-    {
-        protected CoreLibRelinker(ModFwModder modder) : base(modder)
-        {
-        }
-
-        public IFrameworkResolver FrameworkResolver { get; set; } = new DefaultFrameworkResolver();
-
-        public event ResolveCoreLibHandler? Resolve;
-
-        public bool ThrowResolveFailure { get; set; }
-
-        private EApplyResult OnApplying(ModType modType, ModFwModder? modder)
-        {
-            if (modder is not null)
+                modder.ModContext.OnApply -= OnApplying;
+            }
+            else if (modType == ModType.PreWrite)
             {
-                if (modType == ModType.Shutdown)
+                for (var i = modder.Module.AssemblyReferences.Count - 1; i >= 0; i--)
                 {
-                    modder.ModContext.OnApply -= OnApplying;
-                }
-                else if (modType == ModType.PreWrite)
-                {
-                    for (var i = modder.Module.AssemblyReferences.Count - 1; i >= 0; i--)
+                    var aref = modder.Module.AssemblyReferences[i];
+                    if (aref.Name == "mscorlib"
+                        || aref.Name == "System.Private.CoreLib"
+                    )
                     {
-                        var aref = modder.Module.AssemblyReferences[i];
-                        if (aref.Name == "mscorlib"
-                            || aref.Name == "System.Private.CoreLib"
-                        )
-                        {
-                            modder.Module.AssemblyReferences.RemoveAt(i);
-                        }
+                        modder.Module.AssemblyReferences.RemoveAt(i);
                     }
                 }
             }
-
-            return EApplyResult.Continue;
         }
 
-        void PatchTargetFramework()
+        return EApplyResult.Continue;
+    }
+
+    void PatchTargetFramework()
+    {
+        if (Modder is null) throw new ArgumentNullException(nameof(Modder));
+        var tfa = Modder.Module.Assembly.GetTargetFrameworkAttribute();
+
+        // remove existing, if any
+        if (tfa != null)
         {
-            if (Modder is null) throw new ArgumentNullException(nameof(Modder));
-            var tfa = Modder.Module.Assembly.GetTargetFrameworkAttribute();
+            Modder.Module.Assembly.CustomAttributes.Remove(tfa);
+        }
 
-            // remove existing, if any
-            if (tfa != null)
-            {
-                Modder.Module.Assembly.CustomAttributes.Remove(tfa);
-            }
-
-            // add a new one
-            var ctor = Modder.Module.ImportReference(Modder.FindType(typeof(System.Runtime.Versioning.TargetFrameworkAttribute).FullName).Resolve().FindMethod("System.Void .ctor(System.String)"));
-            Modder.Module.Assembly.CustomAttributes.Add(new(ctor)
-            {
-                ConstructorArguments =
+        // add a new one
+        var ctor = Modder.Module.ImportReference(Modder.FindType(typeof(System.Runtime.Versioning.TargetFrameworkAttribute).FullName).Resolve().FindMethod("System.Void .ctor(System.String)"));
+        Modder.Module.Assembly.CustomAttributes.Add(new(ctor)
+        {
+            ConstructorArguments =
                 {
                     new (Modder.Module.TypeSystem.String, ".NETCoreApp,Version=v6.0")
                 },
-                Properties =
+            Properties =
                 {
                     new ("FrameworkDisplayName", new (Modder.Module.TypeSystem.String, ""))
                 }
-            });
-        }
+        });
+    }
 
-        public override void Registered()
-        {
-            // prepare target framework. cannot use the shim libraries otherwise you end up with System.Private.CoreLib refs
-            var fw = FrameworkResolver.FindFramework();
-            Modder.AssemblyResolver.AddSearchDirectory(fw); // allow monomod to resolve System.Runtime
+    public override void Registered()
+    {
+        // prepare target framework. cannot use the shim libraries otherwise you end up with System.Private.CoreLib refs
+        var fw = FrameworkResolver.FindFramework();
+        Modder.AssemblyResolver.AddSearchDirectory(fw); // allow monomod to resolve System.Runtime
 
-            //SystemTypes = GetSystemType(fw);
+        //SystemTypes = GetSystemType(fw);
 
-            base.Registered();
+        base.Registered();
 
-            Modder.ModContext.OnApply += OnApplying;
-        }
+        Modder.ModContext.OnApply += OnApplying;
+    }
 
-        public override void PreWrite()
-        {
-            PatchTargetFramework();
-            base.PreWrite();
-        }
+    public override void PreWrite()
+    {
+        PatchTargetFramework();
+        base.PreWrite();
+    }
 
-        AssemblyNameReference? ResolveDependency(TypeReference type)
-        {
-            if (Modder is null) throw new ArgumentNullException(nameof(Modder));
-            var depds = Modder.DependencyCache.Values
-                .Select(m => new
-                {
-                    Module = m,
-                    Types = m.Types.Where(x => x.FullName == type.FullName
-                        && m.Assembly.Name.Name != "mscorlib"
-                        && m.Assembly.Name.Name != "System.Private.CoreLib"
-                        && x.IsPublic
-                    )
-                })
-                .Where(x => x.Types.Any())
-                // pick the assembly with the highest version.
-                // TODO: consider if this will ever need to target other fw's
-                .OrderByDescending(x => x.Module.Assembly.Name.Version); ;
-
-            var first = depds.FirstOrDefault();
-            if (first is not null)
+    AssemblyNameReference? ResolveDependency(TypeReference type)
+    {
+        if (Modder is null) throw new ArgumentNullException(nameof(Modder));
+        var depds = Modder.DependencyCache.Values
+            .Select(m => new
             {
-                return first.Module.Assembly.AsNameReference();
+                Module = m,
+                Types = m.Types.Where(x => x.FullName == type.FullName
+                    && m.Assembly.Name.Name != "mscorlib"
+                    && m.Assembly.Name.Name != "System.Private.CoreLib"
+                    && x.IsPublic
+                )
+            })
+            .Where(x => x.Types.Any())
+            // pick the assembly with the highest version.
+            // TODO: consider if this will ever need to target other fw's
+            .OrderByDescending(x => x.Module.Assembly.Name.Version); ;
+
+        var first = depds.FirstOrDefault();
+        if (first is not null)
+        {
+            return first.Module.Assembly.AsNameReference();
+        }
+        return null;
+    }
+
+    AssemblyNameReference? ResolveAssembly(TypeReference type)
+    {
+        var res = Resolve?.Invoke(type);
+        if (res is null)
+        {
+            if (type.Scope is AssemblyNameReference anr)
+            {
+                var dependencyMatch = ResolveDependency(type);
+                if (dependencyMatch is not null)
+                    return dependencyMatch;
+
+                if (ThrowResolveFailure)
+                    throw new Exception($"Relink failed. Unable to resolve {type.FullName}");
             }
-            return null;
+            else throw new Exception($"{type.Scope.GetType().FullName} is not handled.");
         }
 
-        AssemblyNameReference? ResolveAssembly(TypeReference type)
-        {
-            var res = Resolve?.Invoke(type);
-            if (res is null)
-            {
-                if (type.Scope is AssemblyNameReference anr)
-                {
-                    var dependencyMatch = ResolveDependency(type);
-                    if (dependencyMatch is not null)
-                        return dependencyMatch;
+        if (res?.Name == "mscorlib" || res?.Name == "System.Private.CoreLib")
+            throw new Exception($"Relink failed, must not be corelib");
 
-                    if (ThrowResolveFailure)
-                        throw new Exception($"Relink failed. Unable to resolve {type.FullName}");
+        return res;
+    }
+
+    public override bool RelinkType<TRef>(ref TRef type)
+    {
+        if (type.Scope.Name == "mscorlib"
+               || type.Scope.Name == "netstandard"
+               || type.Scope.Name == "System.Private.CoreLib"
+           )
+        {
+            var asm = ResolveAssembly(type);
+            if (asm is not null)
+            {
+                // transition period (until i get the new roslyn package working wrt nullattrs)
+                // we must find the highest package, because System.Runtime can have v5 + v6
+                var existing = type.Module.AssemblyReferences
+                    .OrderByDescending(x => x.Version)
+                    .FirstOrDefault(x => x.Name == asm.Name);
+                if (existing != null)
+                {
+                    type.Scope = existing;
                 }
-                else throw new Exception($"{type.Scope.GetType().FullName} is not handled.");
-            }
-
-            if (res?.Name == "mscorlib" || res?.Name == "System.Private.CoreLib")
-                throw new Exception($"Relink failed, must not be corelib");
-
-            return res;
-        }
-
-        public override bool RelinkType<TRef>(ref TRef type)
-        {
-            if (type.Scope.Name == "mscorlib"
-                   || type.Scope.Name == "netstandard"
-                   || type.Scope.Name == "System.Private.CoreLib"
-               )
-            {
-                var asm = ResolveAssembly(type);
-                if (asm is not null)
+                else
                 {
-                    // transition period (until i get the new roslyn package working wrt nullattrs)
-                    // we must find the highest package, because System.Runtime can have v5 + v6
-                    var existing = type.Module.AssemblyReferences
-                        .OrderByDescending(x => x.Version)
-                        .FirstOrDefault(x => x.Name == asm.Name);
-                    if (existing != null)
-                    {
-                        type.Scope = existing;
-                    }
-                    else
-                    {
-                        type.Scope = asm;
-                        type.Module.AssemblyReferences.Add(asm);
-                    }
-                    return true;
+                    type.Scope = asm;
+                    type.Module.AssemblyReferences.Add(asm);
                 }
+                return true;
             }
-            return false;
         }
+        return false;
     }
 }

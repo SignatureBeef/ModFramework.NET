@@ -27,7 +27,7 @@ public class DefaultFrameworkResolver : IFrameworkResolver
 
     public static IEnumerable<string> InstallPackage(string name)
     {
-        var paths = new List<string>();
+        List<string> paths = new();
         var basedirectory = "dependencies";
         Directory.CreateDirectory(basedirectory);
 
@@ -94,7 +94,7 @@ public class DefaultFrameworkResolver : IFrameworkResolver
             return stream;
         }
 
-        var streams = new List<PackageSource>();
+        List<PackageSource> streams = new();
 
         var repository = Repository.Factory.GetCoreV3("https://api.nuget.org/v3/index.json");
 
@@ -134,7 +134,7 @@ public class DefaultFrameworkResolver : IFrameworkResolver
         _resolvePackageCache[key] = streams;
 
         if (packageStream.Length > 0)
-            streams.Add(new PackageSource(packageName, packageStream));
+            streams.Add(new(packageName, packageStream));
 
         var dependencies = await resource.GetDependencyInfoAsync(packageName, version, _nugetCache,
             NullLogger.Instance,
@@ -158,7 +158,7 @@ public class DefaultFrameworkResolver : IFrameworkResolver
                     CancellationToken.None);
 
                 if (depStream.Length > 0)
-                    streams.Add(new PackageSource(package.Id, depStream));
+                    streams.Add(new(package.Id, depStream));
             }
         }
 

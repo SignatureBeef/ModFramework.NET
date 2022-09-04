@@ -16,15 +16,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-using System.IO;
 using System.Reflection;
 
-namespace ModFramework.Plugins
-{
-    public class LegacyAssemblyResolver : IAssemblyLoader
-    {
-        public Assembly Load(string path) => Assembly.Load(System.IO.File.ReadAllBytes(path));
+namespace ModFramework.Plugins;
 
-        public Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream pdbsymbols) => Assembly.Load(assembly.ToArray(), pdbsymbols.ToArray());
-    }
+public class LegacyAssemblyResolver : IAssemblyLoader
+{
+    public Assembly Load(string path) => Assembly.Load(System.IO.File.ReadAllBytes(path));
+
+    public Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream pdbsymbols) => Assembly.Load(assembly.ToArray(), pdbsymbols.ToArray());
 }

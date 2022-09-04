@@ -29,8 +29,8 @@ public class Program
 
         Console.WriteLine($"[JS] Loading ClearScript files from ./{Hooks.RootFolder}");
 
-        var ctx = new ModContext("TEST");
-        var ScriptManager = new ScriptManager(ctx, Hooks.RootFolder, null);
+        ModContext ctx = new("TEST");
+        ScriptManager ScriptManager = new(ctx, Hooks.RootFolder, null);
         ScriptManager.Initialise();
         ScriptManager.WatchForChanges();
         ScriptManager.Cli();

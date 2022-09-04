@@ -19,31 +19,28 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using Mono.Cecil;
 using MonoMod.Utils;
 
-namespace ModFramework
+namespace ModFramework;
+
+[MonoMod.MonoModIgnore]
+public static class ReplacementExtensions
 {
-    [MonoMod.MonoModIgnore]
-    public static class ReplacementExtensions
+    public static FieldDefinition Clone(this FieldDefinition field)
+        => new(field.Name, field.Attributes, field.FieldType);
+
+    public static PropertyDefinition Clone(this PropertyDefinition property)
     {
-        public static FieldDefinition Clone(this FieldDefinition field)
+        PropertyDefinition prop = new(property.Name, property.Attributes, property.PropertyType);
+
+        // prop.HasThis = property.HasThis;
+        if (property.GetMethod != null)
         {
-            return new FieldDefinition(field.Name, field.Attributes, field.FieldType);
+            prop.GetMethod = property.GetMethod.Clone();
+        }
+        if (property.SetMethod != null)
+        {
+            prop.SetMethod = property.SetMethod.Clone();
         }
 
-        public static PropertyDefinition Clone(this PropertyDefinition property)
-        {
-            var prop = new PropertyDefinition(property.Name, property.Attributes, property.PropertyType);
-
-            // prop.HasThis = property.HasThis;
-            if (property.GetMethod != null)
-            {
-                prop.GetMethod = property.GetMethod.Clone();
-            }
-            if (property.SetMethod != null)
-            {
-                prop.SetMethod = property.SetMethod.Clone();
-            }
-
-            return prop;
-        }
+        return prop;
     }
 }

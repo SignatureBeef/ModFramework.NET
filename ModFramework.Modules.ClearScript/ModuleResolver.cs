@@ -16,105 +16,85 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 using Microsoft.ClearScript;
 using Microsoft.ClearScript.V8;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace ModFramework.Modules.ClearScript
+namespace ModFramework.Modules.ClearScript;
+
+public class ModuleResolver : DocumentLoader, IDisposable
 {
-    //class ImportHostObject : Document
-    //{
-    //    protected DocumentInfo info;
-    //    protected Stream contents;
+    protected V8ScriptEngine engine;
+    protected DocumentLoader root;
 
-    //    public ImportHostObject(DocumentCategory category, string name)
-    //    {
-    //        this.info = new DocumentInfo(name)
-    //        {
-    //            Category = category,
-    //        };
-    //        this.contents = new MemoryStream(System.Text.Encoding.UTF8.GetBytes($"export default {name};"));
-    //    }
+    private Dictionary<string, Document> _cache = new Dictionary<string, Document>();
 
-    //    public override DocumentInfo Info => info;
-    //    public override Stream Contents => contents;
-    //}
-
-    public class ModuleResolver : DocumentLoader, IDisposable
+    public ModuleResolver(V8ScriptEngine engine, DocumentLoader root)
     {
-        protected V8ScriptEngine engine;
-        protected DocumentLoader root;
+        this.engine = engine;
+        this.root = root;
+    }
 
-        private Dictionary<string, Document> _cache = new Dictionary<string, Document>();
+    public StringDocument AddDocument(string name, string code, DocumentCategory category, bool cache = true)
+    {
+        StringDocument doc = new(new(name) { Category = category }, code);
+        if (cache) _cache[name] = doc;
+        return doc;
+    }
 
-        public ModuleResolver(V8ScriptEngine engine, DocumentLoader root)
+    public void Unload(string name)
+    {
+        if (_cache.ContainsKey(name))
+            _cache.Remove(name);
+    }
+
+    const string Prefix_AddHostObject = "AddHostObject-";
+    const string Prefix_AddHostType = "AddHostType-";
+
+    static string Clean(string name)
+    {
+        return name.Replace(".", "_").Replace("-", "_").Replace(",", "_");
+    }
+
+    public override Task<Document> LoadDocumentAsync(DocumentSettings settings, DocumentInfo? sourceInfo, string specifier, DocumentCategory category, DocumentContextCallback contextCallback)
+    {
+        var module_name = Clean(specifier);
+
+        if (_cache != null && _cache.TryGetValue(module_name, out Document? cached) && _cache != null)
         {
-            this.engine = engine;
-            this.root = root;
+            //var sw = new StreamReader(cached.Contents);
+            //var txt = sw.ReadToEnd();
+            return Task.FromResult(cached);
         }
 
-        public StringDocument AddDocument(string name, string code, DocumentCategory category, bool cache = true)
+        if (specifier.StartsWith(Prefix_AddHostObject, StringComparison.CurrentCultureIgnoreCase))
         {
-            var doc = new StringDocument(new DocumentInfo(name) { Category = category }, code);
-            if (cache) _cache[name] = doc;
-            return doc;
+            var csv = specifier.Substring(Prefix_AddHostObject.Length);
+            engine.AddHostObject(module_name, new HostTypeCollection(csv.Split(',')));
+            return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category, cache: false));
         }
 
-        public void Unload(string name)
+        if (specifier.StartsWith(Prefix_AddHostType, StringComparison.CurrentCultureIgnoreCase))
         {
-            if (_cache.ContainsKey(name))
-                _cache.Remove(name);
+            var type = specifier.Substring(Prefix_AddHostType.Length);
+            engine.AddHostType(module_name, type);
+            return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category, cache: false));
         }
 
-        const string Prefix_AddHostObject = "AddHostObject-";
-        const string Prefix_AddHostType = "AddHostType-";
+        return root.LoadDocumentAsync(settings, sourceInfo, specifier, category, contextCallback);
+    }
 
-        static string Clean(string name)
-        {
-            return name.Replace(".", "_").Replace("-", "_").Replace(",", "_");
-        }
+    public override void DiscardCachedDocuments()
+    {
+        base.DiscardCachedDocuments();
+        _cache.Clear();
+    }
 
-        public override Task<Document> LoadDocumentAsync(DocumentSettings settings, DocumentInfo? sourceInfo, string specifier, DocumentCategory category, DocumentContextCallback contextCallback)
-        {
-            var module_name = Clean(specifier);
-
-            if (_cache != null && _cache.TryGetValue(module_name, out Document? cached) && _cache != null)
-            {
-                //var sw = new StreamReader(cached.Contents);
-                //var txt = sw.ReadToEnd();
-                return Task.FromResult(cached);
-            }
-
-            if (specifier.StartsWith(Prefix_AddHostObject, StringComparison.CurrentCultureIgnoreCase))
-            {
-                var csv = specifier.Substring(Prefix_AddHostObject.Length);
-                engine.AddHostObject(module_name, new HostTypeCollection(csv.Split(',')));
-                return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category, cache: false));
-            }
-
-            if (specifier.StartsWith(Prefix_AddHostType, StringComparison.CurrentCultureIgnoreCase))
-            {
-                var type = specifier.Substring(Prefix_AddHostType.Length);
-                engine.AddHostType(module_name, type);
-                return Task.FromResult<Document>(AddDocument(module_name, $"export default {module_name};", category, cache: false));
-            }
-
-            return root.LoadDocumentAsync(settings, sourceInfo, specifier, category, contextCallback);
-        }
-
-        public override void DiscardCachedDocuments()
-        {
-            base.DiscardCachedDocuments();
-            _cache.Clear();
-        }
-
-        public void Dispose()
-        {
-            _cache.Clear();
-            //cache = null;
-        }
+    public void Dispose()
+    {
+        _cache.Clear();
+        //cache = null;
     }
 }

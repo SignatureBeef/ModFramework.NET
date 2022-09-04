@@ -16,301 +16,300 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+using NLua.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using NLua.Exceptions;
 
-namespace ModFramework.Modules.Lua
+namespace ModFramework.Modules.Lua;
+
+public delegate bool FileFoundHandler(string filepath);
+
+class LuaScript : IDisposable
 {
-    public delegate bool FileFoundHandler(string filepath);
+    public string? FilePath { get; set; }
+    public string? FileName { get; set; }
+    public NLua.Lua? Container { get; set; }
+    public string? Content { get; set; }
 
-    class LuaScript : IDisposable
+    public object[]? LoadResult { get; set; }
+    public object? LoadError { get; set; }
+
+    public ScriptManager Manager { get; set; }
+
+    public LuaScript(ScriptManager manager)
     {
-        public string? FilePath { get; set; }
-        public string? FileName { get; set; }
-        public NLua.Lua? Container { get; set; }
-        public string? Content { get; set; }
+        Manager = manager;
+    }
 
-        public object[]? LoadResult { get; set; }
-        public object? LoadError { get; set; }
-
-        public ScriptManager Manager { get; set; }
-
-        public LuaScript(ScriptManager manager)
+    public void UnloadLua()
+    {
+        var dispose = Container?["Dispose"] as NLua.LuaFunction;
+        if (dispose != null)
         {
-            Manager = manager;
+            dispose.Call();
         }
+    }
 
-        public void UnloadLua()
+    public void Dispose()
+    {
+        if (Container != null) UnloadLua();
+        Container?.Dispose();
+        FilePath = null;
+        FileName = null;
+        Container = null;
+        Content = null;
+        LoadResult = null;
+        LoadError = null;
+    }
+
+    public IEnumerable<string> GetComments()
+    {
+        if (Content is null) throw new Exception($"{nameof(Content)} is null");
+        return Content.Split('\n')
+            .Where(line => (line.Trim().StartsWith("-- @doc", StringComparison.CurrentCultureIgnoreCase)))
+            .Select(line => line.Replace("-- ", "").Trim());
+    }
+
+    void RegisterComments()
+    {
+        if (FilePath is null) throw new Exception($"{nameof(FilePath)} is null");
+        var doc = Manager.GetMarkdownDocumentor();
+        if (doc is not null)
         {
-            var dispose = Container?["Dispose"] as NLua.LuaFunction;
-            if (dispose != null)
+            var comments = this.GetComments();
+            if (comments.Any())
             {
-                dispose.Call();
-            }
-        }
-
-        public void Dispose()
-        {
-            if (Container != null) UnloadLua();
-            Container?.Dispose();
-            FilePath = null;
-            FileName = null;
-            Container = null;
-            Content = null;
-            LoadResult = null;
-            LoadError = null;
-        }
-
-        public IEnumerable<string> GetComments()
-        {
-            if (Content is null) throw new Exception($"{nameof(Content)} is null");
-            return Content.Split('\n')
-                .Where(line => (line.Trim().StartsWith("-- @doc", StringComparison.CurrentCultureIgnoreCase)))
-                .Select(line => line.Replace("-- ", "").Trim());
-        }
-
-        void RegisterComments()
-        {
-            if (FilePath is null) throw new Exception($"{nameof(FilePath)} is null");
-            var doc = Manager.GetMarkdownDocumentor();
-            if (doc is not null)
-            {
-                var comments = this.GetComments();
-                if (comments.Any())
+                foreach (var comment in comments)
                 {
-                    foreach (var comment in comments)
+                    doc.Add(new BasicComment()
                     {
-                        doc.Add(new BasicComment()
-                        {
-                            Comments = comment,
-                            Type = "script",
-                            FilePath = this.FilePath,
-                        });
-                    }
+                        Comments = comment,
+                        Type = "script",
+                        FilePath = this.FilePath,
+                    });
                 }
-            }
-        }
-
-        public void Load()
-        {
-            if (FilePath is null) throw new Exception($"{nameof(FilePath)} is null");
-            try
-            {
-                if (Container != null) UnloadLua();
-                Container?.Dispose();
-
-                Container = new NLua.Lua();
-                Container.LoadCLRPackage();
-
-                if (Manager.Modder != null)
-                    Container["Modder"] = Manager.Modder;
-
-                Content = File.ReadAllText(FilePath);
-                LoadResult = Container.DoString(Content);
-
-                RegisterComments();
-            }
-            catch (LuaScriptException ex)
-            {
-                LoadError = ex;
-                Console.WriteLine("[Lua] Load failed");
-                Console.WriteLine(ex);
-                Console.WriteLine(ex.InnerException);
-            }
-            catch (Exception ex)
-            {
-                LoadError = ex;
-                Console.WriteLine("[Lua] Load failed");
-                Console.WriteLine(ex);
             }
         }
     }
 
-    public class ScriptManager : IDisposable
+    public void Load()
     {
-        public string ScriptFolder { get; set; }
-
-        private List<LuaScript> _scripts { get; } = new List<LuaScript>();
-        private FileSystemWatcher? _watcher { get; set; }
-
-        public ModFwModder? Modder { get; set; }
-        public ModContext ModContext { get; set; }
-
-        public MarkdownDocumentor? MarkdownDocumentor { get; set; }
-
-        public ScriptManager(
-            ModContext context,
-            string scriptFolder,
-            ModFwModder? modder
-        )
+        if (FilePath is null) throw new Exception($"{nameof(FilePath)} is null");
+        try
         {
-            ModContext = context;
-            ScriptFolder = scriptFolder;
-            Modder = modder;
+            if (Container != null) UnloadLua();
+            Container?.Dispose();
+
+            Container = new();
+            Container.LoadCLRPackage();
+
+            if (Manager.Modder != null)
+                Container["Modder"] = Manager.Modder;
+
+            Content = File.ReadAllText(FilePath);
+            LoadResult = Container.DoString(Content);
+
+            RegisterComments();
         }
-
-        public ScriptManager SetMarkdownDocumentor(MarkdownDocumentor documentor)
+        catch (LuaScriptException ex)
         {
-            MarkdownDocumentor = documentor;
-            return this;
+            LoadError = ex;
+            Console.WriteLine("[Lua] Load failed");
+            Console.WriteLine(ex);
+            Console.WriteLine(ex.InnerException);
         }
-
-        public MarkdownDocumentor? GetMarkdownDocumentor()
+        catch (Exception ex)
         {
-            if (MarkdownDocumentor is not null)
-                return MarkdownDocumentor;
-
-            return Modder?.MarkdownDocumentor;
+            LoadError = ex;
+            Console.WriteLine("[Lua] Load failed");
+            Console.WriteLine(ex);
         }
+    }
+}
 
-        LuaScript CreateScriptFromFile(string file)
+public class ScriptManager : IDisposable
+{
+    public string ScriptFolder { get; set; }
+
+    private List<LuaScript> _scripts { get; } = new();
+    private FileSystemWatcher? _watcher { get; set; }
+
+    public ModFwModder? Modder { get; set; }
+    public ModContext ModContext { get; set; }
+
+    public MarkdownDocumentor? MarkdownDocumentor { get; set; }
+
+    public ScriptManager(
+        ModContext context,
+        string scriptFolder,
+        ModFwModder? modder
+    )
+    {
+        ModContext = context;
+        ScriptFolder = scriptFolder;
+        Modder = modder;
+    }
+
+    public ScriptManager SetMarkdownDocumentor(MarkdownDocumentor documentor)
+    {
+        MarkdownDocumentor = documentor;
+        return this;
+    }
+
+    public MarkdownDocumentor? GetMarkdownDocumentor()
+    {
+        if (MarkdownDocumentor is not null)
+            return MarkdownDocumentor;
+
+        return Modder?.MarkdownDocumentor;
+    }
+
+    LuaScript CreateScriptFromFile(string file)
+    {
+        Console.WriteLine($"[LUA] Loading {file}");
+
+        LuaScript script = new(this)
         {
-            Console.WriteLine($"[LUA] Loading {file}");
+            FilePath = file,
+            FileName = Path.GetFileNameWithoutExtension(file),
+        };
 
-            var script = new LuaScript(this)
+        _scripts.Add(script);
+
+        script.Load();
+
+        return script;
+    }
+
+    public void Initialise()
+    {
+        var scripts = Directory.GetFiles(ScriptFolder, "*.lua");
+        foreach (var file in scripts)
+        {
+            if (ModContext?.PluginLoader.CanAddFile(file) == false)
+                continue; // event was cancelled, they do not wish to use this file. skip to the next.
+
+            CreateScriptFromFile(file);
+        }
+    }
+
+    public bool WatchForChanges()
+    {
+        try
+        {
+            _watcher = new(ScriptFolder);
+            _watcher.Created += _watcher_Created;
+            _watcher.Changed += _watcher_Changed;
+            _watcher.Deleted += _watcher_Deleted;
+            _watcher.Renamed += _watcher_Renamed;
+            _watcher.Error += _watcher_Error;
+            _watcher.EnableRaisingEvents = true;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            var orig = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(ex);
+
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine("[LUA] FILE WATCHERS ARE NOT RUNNING");
+            Console.WriteLine("[LUA] Try running: export MONO_MANAGED_WATCHER=dummy");
+            Console.ForegroundColor = orig;
+        }
+        return false;
+    }
+
+    private void _watcher_Error(object sender, ErrorEventArgs e)
+    {
+        Console.WriteLine("[LUA] Error");
+        Console.WriteLine(e.GetException());
+    }
+
+    private void _watcher_Renamed(object sender, RenamedEventArgs e)
+    {
+        if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
+        Console.WriteLine("[LUA] Renamed: " + e.FullPath);
+        var src = Path.GetFileNameWithoutExtension(e.OldFullPath);
+        var dst = Path.GetFileNameWithoutExtension(e.FullPath);
+
+        foreach (var s in _scripts)
+        {
+            if (s.FileName is null) throw new Exception($"{nameof(s.FileName)} is null");
+
+            if (s.FileName.Equals(src))
             {
-                FilePath = file,
-                FileName = Path.GetFileNameWithoutExtension(file),
-            };
-
-            _scripts.Add(script);
-
-            script.Load();
-
-            return script;
-        }
-
-        public void Initialise()
-        {
-            var scripts = Directory.GetFiles(ScriptFolder, "*.lua");
-            foreach (var file in scripts)
-            {
-                if (ModContext?.PluginLoader.CanAddFile(file) == false)
-                    continue; // event was cancelled, they do not wish to use this file. skip to the next.
-
-                CreateScriptFromFile(file);
+                s.FileName = dst;
+                s.FilePath = e.FullPath;
             }
         }
+    }
 
-        public bool WatchForChanges()
+    private void _watcher_Deleted(object sender, FileSystemEventArgs e)
+    {
+        if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
+
+        var name = Path.GetFileNameWithoutExtension(e.FullPath);
+        var matches = _scripts.Where(x => x.FileName == name).ToArray();
+        Console.WriteLine($"[LUA] Deleted: {e.FullPath} [m:{matches.Count()}]");
+        foreach (var script in matches)
         {
             try
             {
-                _watcher = new FileSystemWatcher(ScriptFolder);
-                _watcher.Created += _watcher_Created;
-                _watcher.Changed += _watcher_Changed;
-                _watcher.Deleted += _watcher_Deleted;
-                _watcher.Renamed += _watcher_Renamed;
-                _watcher.Error += _watcher_Error;
-                _watcher.EnableRaisingEvents = true;
-
-                return true;
+                _scripts.Remove(script);
+                script.Dispose();
             }
             catch (Exception ex)
             {
-                var orig = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(ex);
-
-                Console.ForegroundColor = ConsoleColor.DarkYellow;
-                Console.WriteLine("[LUA] FILE WATCHERS ARE NOT RUNNING");
-                Console.WriteLine("[LUA] Try running: export MONO_MANAGED_WATCHER=dummy");
-                Console.ForegroundColor = orig;
-            }
-            return false;
-        }
-
-        private void _watcher_Error(object sender, ErrorEventArgs e)
-        {
-            Console.WriteLine("[LUA] Error");
-            Console.WriteLine(e.GetException());
-        }
-
-        private void _watcher_Renamed(object sender, RenamedEventArgs e)
-        {
-            if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
-            Console.WriteLine("[LUA] Renamed: " + e.FullPath);
-            var src = Path.GetFileNameWithoutExtension(e.OldFullPath);
-            var dst = Path.GetFileNameWithoutExtension(e.FullPath);
-
-            foreach (var s in _scripts)
-            {
-                if (s.FileName is null) throw new Exception($"{nameof(s.FileName)} is null");
-
-                if (s.FileName.Equals(src))
-                {
-                    s.FileName = dst;
-                    s.FilePath = e.FullPath;
-                }
+                Console.WriteLine($"[Lua] Unload failed {ex}");
             }
         }
+    }
 
-        private void _watcher_Deleted(object sender, FileSystemEventArgs e)
+    private void _watcher_Changed(object sender, FileSystemEventArgs e)
+    {
+        if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
+        var name = Path.GetFileNameWithoutExtension(e.FullPath);
+        var matches = _scripts.Where(x => x.FileName == name).ToArray();
+        Console.WriteLine($"[LUA] Changed: {e.FullPath} [m:{matches.Count()}]");
+        foreach (var script in matches)
         {
-            if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
+            script.Load();
+        }
+    }
 
-            var name = Path.GetFileNameWithoutExtension(e.FullPath);
-            var matches = _scripts.Where(x => x.FileName == name).ToArray();
-            Console.WriteLine($"[LUA] Deleted: {e.FullPath} [m:{matches.Count()}]");
-            foreach (var script in matches)
+    private void _watcher_Created(object sender, FileSystemEventArgs e)
+    {
+        if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
+        Console.WriteLine("[LUA] Created: " + e.FullPath);
+        CreateScriptFromFile(e.FullPath);
+    }
+
+    public void Dispose()
+    {
+        _watcher?.Dispose();
+
+        var cscripts = _scripts;
+        if (cscripts is not null)
+        {
+            foreach (var script in cscripts)
             {
-                try
-                {
-                    _scripts.Remove(script);
-                    script.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Lua] Unload failed {ex}");
-                }
+                script.Dispose();
             }
+            cscripts.Clear();
         }
+    }
 
-        private void _watcher_Changed(object sender, FileSystemEventArgs e)
+    public void Cli()
+    {
+        var exit = false;
+        do
         {
-            if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
-            var name = Path.GetFileNameWithoutExtension(e.FullPath);
-            var matches = _scripts.Where(x => x.FileName == name).ToArray();
-            Console.WriteLine($"[LUA] Changed: {e.FullPath} [m:{matches.Count()}]");
-            foreach (var script in matches)
-            {
-                script.Load();
-            }
-        }
-
-        private void _watcher_Created(object sender, FileSystemEventArgs e)
-        {
-            if (!Path.GetExtension(e.FullPath).Equals(".lua", StringComparison.CurrentCultureIgnoreCase)) return;
-            Console.WriteLine("[LUA] Created: " + e.FullPath);
-            CreateScriptFromFile(e.FullPath);
-        }
-
-        public void Dispose()
-        {
-            _watcher?.Dispose();
-
-            var cscripts = _scripts;
-            if (cscripts is not null)
-            {
-                foreach (var script in cscripts)
-                {
-                    script.Dispose();
-                }
-                cscripts.Clear();
-            }
-        }
-
-        public void Cli()
-        {
-            var exit = false;
-            do
-            {
-                Console.WriteLine("[LUA] TEST MENU. Press C to exit");
-                exit = (Console.ReadKey(true).Key == ConsoleKey.C);
-            } while (!exit);
-        }
+            Console.WriteLine("[LUA] TEST MENU. Press C to exit");
+            exit = (Console.ReadKey(true).Key == ConsoleKey.C);
+        } while (!exit);
     }
 }

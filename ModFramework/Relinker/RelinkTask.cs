@@ -18,75 +18,73 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using MonoMod;
 using System;
 using System.Collections.Generic;
 
-namespace ModFramework.Relinker
+namespace ModFramework.Relinker;
+
+[MonoMod.MonoModIgnore]
+public abstract class RelinkTask : IDisposable
 {
-    [MonoMod.MonoModIgnore]
-    public abstract class RelinkTask : IDisposable
+    private bool disposedValue;
+
+    public ModFwModder Modder { get; set; }
+    public virtual int Order { get; set; } = 100;
+
+    public virtual void Registered() { }
+    public virtual void PreWrite() { }
+
+    public RelinkTask(ModFwModder modder)
     {
-        private bool disposedValue;
+        Modder = modder;
+    }
 
-        public ModFwModder Modder { get; set; }
-        public virtual int Order { get; set; } = 100;
+    public virtual void Relink(TypeDefinition type) { }
+    public virtual void Relink(MethodDefinition method) { }
+    public virtual void Relink(MethodDefinition method, VariableDefinition variable) { }
+    public virtual void Relink(MethodDefinition method, ParameterDefinition parameter) { }
+    public virtual void Relink(FieldDefinition field) { }
+    public virtual void Relink(PropertyDefinition property) { }
+    public virtual void Relink(MethodBody body, Instruction instr) { }
+    public virtual void Relink(EventDefinition typeEvent) { }
 
-        public virtual void Registered() { }
-        public virtual void PreWrite() { }
+    protected virtual void Cleanup() { }
 
-        public RelinkTask(ModFwModder modder)
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
         {
-            Modder = modder;
-        }
-
-        public virtual void Relink(TypeDefinition type) { }
-        public virtual void Relink(MethodDefinition method) { }
-        public virtual void Relink(MethodDefinition method, VariableDefinition variable) { }
-        public virtual void Relink(MethodDefinition method, ParameterDefinition parameter) { }
-        public virtual void Relink(FieldDefinition field) { }
-        public virtual void Relink(PropertyDefinition property) { }
-        public virtual void Relink(MethodBody body, Instruction instr) { }
-        public virtual void Relink(EventDefinition typeEvent) { }
-
-        protected virtual void Cleanup() { }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
+            if (disposing)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                    Cleanup();
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
-                disposedValue = true;
+                // TODO: dispose managed state (managed objects)
+                Cleanup();
             }
-        }
 
-        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-        // ~RelinkTask()
-        // {
-        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        //     Dispose(disposing: false);
-        // }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
+            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+            // TODO: set large fields to null
+            disposedValue = true;
         }
     }
 
-    [MonoMod.MonoModIgnore]
-    public interface IRelinkProvider
+    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+    // ~RelinkTask()
+    // {
+    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+    //     Dispose(disposing: false);
+    // }
+
+    public void Dispose()
     {
-        bool AllowInterreferenceReplacements { get; set; }
-        void AddTask(RelinkTask task);
-        IEnumerable<RelinkTask> Tasks { get; }
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
+}
+
+[MonoMod.MonoModIgnore]
+public interface IRelinkProvider
+{
+    bool AllowInterreferenceReplacements { get; set; }
+    void AddTask(RelinkTask task);
+    IEnumerable<RelinkTask> Tasks { get; }
 }

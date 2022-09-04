@@ -22,105 +22,104 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace ModFramework
+namespace ModFramework;
+
+/// <summary>
+/// Describes a modification instance
+/// </summary>
+[AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
+public class ModificationAttribute : Attribute
 {
     /// <summary>
-    /// Describes a modification instance
+    /// Description of what the mod is doing
     /// </summary>
-    [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
-    public class ModificationAttribute : Attribute
+    public string Description { get; set; }
+
+    /// <summary>
+    /// What type of modifiction
+    /// </summary>
+    public ModType Type { get; set; }
+
+    /// <summary>
+    /// A positive or negative value defining the priority of this mod against the others in it's type.
+    /// </summary>
+    public ModPriority Priority { get; set; }
+
+    /// <summary>
+    /// What this modification needs to wait for in order to be executed
+    /// </summary>
+    public string[]? Dependencies { get; set; }
+
+    /// <summary>
+    /// The unique name for this modification in order to determine the dependencies
+    /// </summary>
+    public string? UniqueName { get; set; }
+
+    public ModificationAttribute(ModType type, string description,
+        ModPriority priority = ModPriority.Default,
+        string[]? dependencies = null
+    )
     {
-        /// <summary>
-        /// Description of what the mod is doing
-        /// </summary>
-        public string Description { get; set; }
+        this.Description = description;
+        this.Type = type;
+        this.Priority = priority;
+        this.Dependencies = dependencies;
+    }
 
-        /// <summary>
-        /// What type of modifiction
-        /// </summary>
-        public ModType Type { get; set; }
+    //public Type InstanceType { get; set; }
 
-        /// <summary>
-        /// A positive or negative value defining the priority of this mod against the others in it's type.
-        /// </summary>
-        public ModPriority Priority { get; set; }
+    public MethodBase? MethodBase { get; set; }
+    public object? Instance { get; set; }
 
-        /// <summary>
-        /// What this modification needs to wait for in order to be executed
-        /// </summary>
-        public string[]? Dependencies { get; set; }
+    public virtual MethodBase? GetExecutionMethod() => MethodBase; // ?? InstanceType.GetConstructors().Single();
 
-        /// <summary>
-        /// The unique name for this modification in order to determine the dependencies
-        /// </summary>
-        public string? UniqueName { get; set; }
-
-        public ModificationAttribute(ModType type, string description,
-            ModPriority priority = ModPriority.Default,
-            string[]? dependencies = null
-        )
-        {
-            this.Description = description;
-            this.Type = type;
-            this.Priority = priority;
-            this.Dependencies = dependencies;
-        }
-
-        //public Type InstanceType { get; set; }
-
-        public MethodBase? MethodBase { get; set; }
-        public object? Instance { get; set; }
-
-        public virtual MethodBase? GetExecutionMethod() => MethodBase; // ?? InstanceType.GetConstructors().Single();
-
-        public static IEnumerable<ModificationAttribute> Discover(IEnumerable<Assembly> assemblies)
-        {
-            if (assemblies != null)
-                foreach (var asm in assemblies)
+    public static IEnumerable<ModificationAttribute> Discover(IEnumerable<Assembly> assemblies)
+    {
+        if (assemblies != null)
+            foreach (var asm in assemblies)
+            {
+                Type[] types;
+                try
                 {
-                    Type[] types;
-                    try
+                    types = asm.GetTypes();
+                }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    types = ex.Types.Where(x => x is not null).ToArray()!;
+                }
+
+                var modificationTypes = types.Where(x => x != null); // && !x.IsAbstract);
+
+                foreach (var type in modificationTypes)
+                {
+                    var modificationAttr = type.GetCustomAttribute<ModificationAttribute>();
+                    if (modificationAttr != null)
                     {
-                        types = asm.GetTypes();
-                    }
-                    catch (ReflectionTypeLoadException ex)
-                    {
-                        types = ex.Types.Where(x => x is not null).ToArray()!;
+                        //modificationAttr.InstanceType = type;
+                        modificationAttr.MethodBase = type.GetConstructors().Single();
+                        yield return modificationAttr;
                     }
 
-                    var modificationTypes = types.Where(x => x != null); // && !x.IsAbstract);
-
-                    foreach (var type in modificationTypes)
+                    var methods = type.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+                    foreach (var method in methods)
                     {
-                        var modificationAttr = type.GetCustomAttribute<ModificationAttribute>();
+                        try
+                        {
+                            modificationAttr = method.GetCustomAttribute<ModificationAttribute>();
+                        }
+                        catch (Exception ex)
+                        {
+                            modificationAttr = null;
+                            Console.WriteLine(ex);
+                        }
                         if (modificationAttr != null)
                         {
-                            //modificationAttr.InstanceType = type;
-                            modificationAttr.MethodBase = type.GetConstructors().Single();
+                            modificationAttr.MethodBase = method;
+                            modificationAttr.UniqueName = method.Name.Replace("<<Main>$>g__", "").Replace("<$Main>g__", "").Replace("|0_0", "");
                             yield return modificationAttr;
-                        }
-
-                        var methods = type.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-                        foreach (var method in methods)
-                        {
-                            try
-                            {
-                                modificationAttr = method.GetCustomAttribute<ModificationAttribute>();
-                            }
-                            catch (Exception ex)
-                            {
-                                modificationAttr = null;
-                                Console.WriteLine(ex);
-                            }
-                            if (modificationAttr != null)
-                            {
-                                modificationAttr.MethodBase = method;
-                                modificationAttr.UniqueName = method.Name.Replace("<<Main>$>g__", "").Replace("<$Main>g__", "").Replace("|0_0", "");
-                                yield return modificationAttr;
-                            }
                         }
                     }
                 }
-        }
+            }
     }
 }

@@ -21,152 +21,151 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace ModFramework.Modules.ClearScript.Typings
+namespace ModFramework.Modules.ClearScript.Typings;
+
+public class TypeTraverser : IDisposable
 {
-    public class TypeTraverser : IDisposable
+    public List<Type> Types = new();
+
+    private bool disposedValue;
+
+    public TypeTraverser()
     {
-        public List<Type> Types = new List<Type>();
+    }
 
-        private bool disposedValue;
-
-        public TypeTraverser()
+    public void AddAssembly(System.Reflection.Assembly assembly)
+    {
+        Type[]? types = null;
+        try
         {
+            types = assembly.GetExportedTypes();
+        }
+        catch (ReflectionTypeLoadException rtle)
+        {
+            types = rtle.Types.Where(t => t is not null).ToArray()!;
         }
 
-        public void AddAssembly(System.Reflection.Assembly assembly)
+        if (types != null)
         {
-            Type[]? types = null;
-            try
-            {
-                types = assembly.GetExportedTypes();
-            }
-            catch (ReflectionTypeLoadException rtle)
-            {
-                types = rtle.Types.Where(t => t is not null).ToArray()!;
-            }
+            var publicTypes = types.Where(t => t.IsPublic);
 
-            if (types != null)
-            {
-                var publicTypes = types.Where(t => t.IsPublic);
+            foreach (var type in publicTypes)
+                AddType(type);
+        }
+    }
 
-                foreach (var type in publicTypes)
-                    AddType(type);
-            }
+    static string? GetCommonName(Type type)
+    {
+        var name = type.FullName;
+        var ix = name?.LastIndexOf('`');
+
+        if (ix != null && ix > -1)
+        {
+            name = name!.Substring(0, ix.Value);
+            name += type.GetGenericArguments().Length.ToString();
         }
 
-        static string? GetCommonName(Type type)
+        return name;
+    }
+
+    public void AddType(Type type)
+    {
+        if (type.IsGenericType)
         {
-            var name = type.FullName;
-            var ix = name?.LastIndexOf('`');
-
-            if (ix != null && ix > -1)
-            {
-                name = name!.Substring(0, ix.Value);
-                name += type.GetGenericArguments().Length.ToString();
-            }
-
-            return name;
+            type = type.GetGenericTypeDefinition();
         }
 
-        public void AddType(Type type)
+        if (type.FullName != null
+            && !this.Types.Any(t => GetCommonName(t) == GetCommonName(type))
+            && !type.IsByRef
+            && !type.IsArray
+            && !type.IsPointer
+        )
         {
-            if (type.IsGenericType)
-            {
-                type = type.GetGenericTypeDefinition();
-            }
+            this.Types.Add(type);
 
-            if (type.FullName != null
-                && !this.Types.Any(t => GetCommonName(t) == GetCommonName(type))
-                && !type.IsByRef
-                && !type.IsArray
-                && !type.IsPointer
-            )
+            foreach (var method in type.GetMethods()) //BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
             {
-                this.Types.Add(type);
-
-                foreach (var method in type.GetMethods()) //BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+                if (method.Name.Contains("CSharpRail"))
                 {
-                    if (method.Name.Contains("CSharpRail"))
-                    {
 
-                    }
-                    if (method.ReturnType != type)
-                    {
-                        AddType(method.ReturnType);
-                    }
-
-                    foreach (var prm in method.GetParameters())
-                    {
-                        if (prm.ParameterType != type)
-                        {
-                            AddType(prm.ParameterType);
-                        }
-                    }
+                }
+                if (method.ReturnType != type)
+                {
+                    AddType(method.ReturnType);
                 }
 
-                //foreach(var mem in type.GetMembers())
-                //{
-                //    AddType(mem.ReflectedType);
-                //}
-
-                foreach (var evt in type.GetEvents()) //BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+                foreach (var prm in method.GetParameters())
                 {
-                    if (evt.EventHandlerType != type && evt.EventHandlerType is not null)
+                    if (prm.ParameterType != type)
                     {
-                        AddType(evt.EventHandlerType);
+                        AddType(prm.ParameterType);
+                    }
+                }
+            }
 
-                        var invoke = evt.EventHandlerType.GetMethod("Invoke");
-                        if (invoke != null)
+            //foreach(var mem in type.GetMembers())
+            //{
+            //    AddType(mem.ReflectedType);
+            //}
+
+            foreach (var evt in type.GetEvents()) //BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+            {
+                if (evt.EventHandlerType != type && evt.EventHandlerType is not null)
+                {
+                    AddType(evt.EventHandlerType);
+
+                    var invoke = evt.EventHandlerType.GetMethod("Invoke");
+                    if (invoke != null)
+                    {
+                        foreach (var prm in invoke.GetParameters())
                         {
-                            foreach (var prm in invoke.GetParameters())
+                            if (prm.ParameterType != type)
                             {
-                                if (prm.ParameterType != type)
-                                {
-                                    AddType(prm.ParameterType);
-                                }
+                                AddType(prm.ParameterType);
                             }
                         }
                     }
                 }
-
-                if (type.BaseType != null)
-                {
-                    AddType(type.BaseType);
-                }
             }
-        }
 
-        public void AddType<TType>() => AddType(typeof(TType));
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
+            if (type.BaseType != null)
             {
-                if (disposing)
-                {
-                    // TODO: dispose managed state (managed objects)
-                    this.Types.Clear();
-                    //this.Types = null;
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
-                disposedValue = true;
+                AddType(type.BaseType);
             }
         }
+    }
 
-        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-        // ~TypingsGenerator()
-        // {
-        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        //     Dispose(disposing: false);
-        // }
+    public void AddType<TType>() => AddType(typeof(TType));
 
-        public void Dispose()
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
         {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
+            if (disposing)
+            {
+                // TODO: dispose managed state (managed objects)
+                this.Types.Clear();
+                //this.Types = null;
+            }
+
+            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+            // TODO: set large fields to null
+            disposedValue = true;
         }
+    }
+
+    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+    // ~TypingsGenerator()
+    // {
+    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+    //     Dispose(disposing: false);
+    // }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }

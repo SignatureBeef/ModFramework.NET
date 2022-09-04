@@ -19,25 +19,24 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using Mono.Cecil;
 using System.Linq;
 
-namespace ModFramework.Relinker
-{
-    /// <summary>
-    /// Correct event delegates. MonoMod will public everything, including the delegate handler that is compiler generated and shares the same name.
-    /// This problem causes build exceptions as it cannot figure out which member to use.
-    /// </summary>
-    [MonoMod.MonoModIgnore]
-    public class EventDelegateRelinker : RelinkTask
-    {
-        protected EventDelegateRelinker(ModFwModder modder) : base(modder) { }
+namespace ModFramework.Relinker;
 
-        public override void Relink(EventDefinition typeEvent)
+/// <summary>
+/// Correct event delegates. MonoMod will public everything, including the delegate handler that is compiler generated and shares the same name.
+/// This problem causes build exceptions as it cannot figure out which member to use.
+/// </summary>
+[MonoMod.MonoModIgnore]
+public class EventDelegateRelinker : RelinkTask
+{
+    protected EventDelegateRelinker(ModFwModder modder) : base(modder) { }
+
+    public override void Relink(EventDefinition typeEvent)
+    {
+        var delegateMember = typeEvent.DeclaringType.Fields.SingleOrDefault(f => f.Name == typeEvent.Name);
+        if (delegateMember?.IsPublic == true)
         {
-            var delegateMember = typeEvent.DeclaringType.Fields.SingleOrDefault(f => f.Name == typeEvent.Name);
-            if (delegateMember?.IsPublic == true)
-            {
-                delegateMember.IsPublic = false;
-                delegateMember.IsPrivate = true;
-            }
+            delegateMember.IsPublic = false;
+            delegateMember.IsPrivate = true;
         }
     }
 }

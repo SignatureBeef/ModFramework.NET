@@ -18,15 +18,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 using System.Reflection;
 
-namespace ModFramework.Plugins
+namespace ModFramework.Plugins;
+
+/// <summary>
+/// Defines the bare minimum spec for ModFw to load assemblies
+/// </summary>
+/// <remarks>ModFw defines its own loaders because it used to support across multiple frameworks and AssemblyLoadContext is not always available</remarks>
+public interface IAssemblyLoader
 {
-    /// <summary>
-    /// Defines the bare minimum spec for ModFw to load assemblies
-    /// </summary>
-    /// <remarks>ModFw defines its own loaders because it used to support across multiple frameworks and AssemblyLoadContext is not always available</remarks>
-    public interface IAssemblyLoader
-    {
-        Assembly Load(string path);
-        Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream pdbsymbols);
-    }
+    Assembly Load(string path);
+    Assembly Load(System.IO.MemoryStream assembly, System.IO.MemoryStream pdbsymbols);
 }
