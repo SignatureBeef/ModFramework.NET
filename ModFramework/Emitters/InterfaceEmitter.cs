@@ -26,11 +26,11 @@ namespace ModFramework
     [MonoMod.MonoModIgnore]
     public static class InterfaceEmitter
     {
-        public static TypeDefinition RemapAsInterface(this TypeDefinition ElementType, IRelinkProvider relinkProvider)
+        public static TypeDefinition RemapAsInterface(this TypeDefinition ElementType, ModFwModder modder)
         {
             var iitem = ElementType.RemapWithInterface();
 
-            relinkProvider.AddTask(new InterfaceRelinker(ElementType, iitem));
+            modder.AddTask<InterfaceRelinker>(ElementType, iitem);
 
             return iitem;
         }

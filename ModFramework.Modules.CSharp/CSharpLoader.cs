@@ -21,7 +21,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Text;
-using ModFramework.Plugins;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,12 +41,12 @@ namespace ModFramework.Modules.CSharp
         const string ModulePrefix = "CSharpScript_";
 
         public ModFwModder? Modder { get; set; }
-
-        public static event AssemblyFoundHandler? AssemblyFound;
-        public static List<string> GlobalAssemblies { get; } = new List<string>();
+        public ModContext ModContext { get; set; }
 
         public bool AutoLoadAssemblies { get; set; } = true;
         public MarkdownDocumentor? MarkdownDocumentor { get; set; }
+
+        public bool ClearExistingModifications { get; set; } = true;
 
         public static AssemblyLoadContext AssemblyContextDefault { get; set; } = AssemblyLoadContext.Default;
         public AssemblyLoadContext AssemblyContext { get; set; } = AssemblyContextDefault;
@@ -55,9 +54,38 @@ namespace ModFramework.Modules.CSharp
         public static List<string> DefaultSearchPaths { get; set; } = new List<string>() { "bin" };
         public List<string> SearchPaths { get; set; } = DefaultSearchPaths;
 
+        public IFrameworkResolver FrameworkResolver { get; set; } = new DefaultFrameworkResolver();
+
+        //public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp");
+
+        public string BaseDirectory { get; }
+        public string PluginsDirectory => Path.Combine(BaseDirectory, "plugins");
+        public string GeneratedDirectory => Path.Combine(BaseDirectory, "generated");
+
+        public const String DefaultBaseDirectory = "csharp";
+
+        public CSharpLoader(ModContext context, string baseDirectory = DefaultBaseDirectory)
+        {
+            ModContext = context;
+
+            BaseDirectory = Path.Combine(context.BaseDirectory, baseDirectory);
+        }
+
         public CSharpLoader SetAutoLoadAssemblies(bool autoLoad)
         {
             AutoLoadAssemblies = autoLoad;
+            return this;
+        }
+
+        public CSharpLoader SetClearExistingModifications(bool state)
+        {
+            ClearExistingModifications = state;
+            return this;
+        }
+
+        public CSharpLoader SetContext(ModContext context)
+        {
+            ModContext = context;
             return this;
         }
 
@@ -82,8 +110,8 @@ namespace ModFramework.Modules.CSharp
             return this;
         }
 
-        public delegate bool ExternalRefFound(string filepath);
-        public event ExternalRefFound? OnExternalRefFound;
+        //public delegate bool ExternalRefFound(string filepath);
+        //public event ExternalRefFound? OnExternalRefFound;
 
         IEnumerable<MetadataReference> LoadExternalRefs(string path)
         {
@@ -91,16 +119,13 @@ namespace ModFramework.Modules.CSharp
             if (String.IsNullOrWhiteSpace(assemblyPath))
                 assemblyPath = AppContext.BaseDirectory;
 
-            foreach (var refs_path in Directory.GetFiles(path, "*.refs"))
+            if (ModContext is not null)
             {
-                if (OnExternalRefFound?.Invoke(refs_path) == false)
-                    continue;
-
-                var refs = File.ReadLines(refs_path)
-                    .Select(l => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? l.Replace('/', Path.DirectorySeparatorChar) : l);
-
-                foreach (var ref_file in refs)
+                foreach (var ref_file in ModContext.ReferenceFiles)
                 {
+                    if (!ModContext.PluginLoader.CanAddFile(ref_file))
+                        continue;
+
                     var filename = Path.GetFileName(ref_file);
 
                     var full_path = ResolveFile(ref_file);
@@ -140,10 +165,64 @@ namespace ModFramework.Modules.CSharp
                             if (File.Exists(match))
                                 yield return MetadataReference.CreateFromFile(match);
                         }
-                        else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFullPath(refs_path)})");
+                        else throw new Exception($"Unable to resolve external reference: {ref_file}");
                     }
                 }
             }
+
+            //foreach (var refs_path in Directory.GetFiles(path, "*.refs"))
+            //{
+            //    if (OnExternalRefFound?.Invoke(refs_path) == false)
+            //        continue;
+
+            //    var refs = File.ReadLines(refs_path)
+            //        .Select(l => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? l.Replace('/', Path.DirectorySeparatorChar) : l);
+
+            //    foreach (var ref_file in refs)
+            //    {
+            //        var filename = Path.GetFileName(ref_file);
+
+            //        var full_path = ResolveFile(ref_file);
+            //        var sys_path = Path.Combine(assemblyPath, ref_file);
+
+            //        if (File.Exists(full_path))
+            //            yield return MetadataReference.CreateFromFile(full_path);
+
+            //        else if (File.Exists(sys_path))
+            //            yield return MetadataReference.CreateFromFile(sys_path);
+
+            //        else
+            //        {
+            //            IEnumerable<string> matches = Enumerable.Empty<string>();
+            //            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            //            {
+            //                var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "osx-x64");
+            //                if (Directory.Exists(x64))
+            //                    matches = Directory.GetFiles(x64, "*" + filename, SearchOption.AllDirectories);
+            //            }
+            //            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            //            {
+            //                var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64");
+            //                if (Directory.Exists(x64))
+            //                    matches = Directory.GetFiles(x64, "*" + filename, SearchOption.AllDirectories);
+            //            }
+            //            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            //            {
+            //                var x64 = Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64");
+            //                if (Directory.Exists(x64))
+            //                    matches = Directory.GetFiles(x64, "*" + filename, SearchOption.AllDirectories);
+            //            }
+
+            //            if (matches.Any())
+            //            {
+            //                var match = matches.First();
+            //                if (File.Exists(match))
+            //                    yield return MetadataReference.CreateFromFile(match);
+            //            }
+            //            else throw new Exception($"Unable to resolve external reference: {ref_file} ({Path.GetFullPath(refs_path)})");
+            //        }
+            //    }
+            //}
         }
 
         public class CreateContextOptions
@@ -168,33 +247,44 @@ namespace ModFramework.Modules.CSharp
         public static bool DefaultIncludeLocalSystemAssemblies { get; set; } = true;
         public bool IncludeLocalSystemAssemblies { get; set; } = DefaultIncludeLocalSystemAssemblies;
 
-        public IEnumerable<string> GetAllSystemReferences() => GetAllSystemReferences(out var _);
+        //public IEnumerable<string> GetAllSystemReferences() => GetAllSystemReferences(out var _);
 
-        public IEnumerable<string> GetAllSystemReferences(out IEnumerable<string> libs)
+        private IEnumerable<MetadataReference>? systemRefs = null;
+        public IEnumerable<MetadataReference> GetAllSystemReferences()
         {
-            libs = GetSystemReferences();
+            //libs = GetSystemReferences();
 
-            if (IncludeLocalSystemAssemblies && libs is not null && libs.Count() == 0)
-                return GetReferencedAssemblies();
+            //if (IncludeLocalSystemAssemblies && libs is not null && libs.Count() == 0)
+            //    return GetReferencedAssemblies();
 
-            return libs ?? Enumerable.Empty<string>();
+            //return libs ?? Enumerable.Empty<string>();
+
+            // todo, replace with Microsoft.NETCore.App.Ref - download using NuGet API's, and use them for bindings.
+            //return systemRefs ?? (systemRefs = ReferenceAssemblies.Net.Net60.ResolveAsync(default, default).Result);
+            //return systemRefs ?? (systemRefs = ReferenceAssemblies.Net.Net60.ResolveAsync(default, default).Result);
+            if (systemRefs is not null) return systemRefs;
+
+            var fw = FrameworkResolver.FindFramework();
+
+            var files = Directory.GetFiles(fw, "*.dll");
+            return systemRefs = files.Select(f => MetadataReference.CreateFromFile(f));
         }
 
-        public IEnumerable<string> GetSystemReferences()
-        {
-            var libs = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
-                .Split(Path.PathSeparator)?
-                .Where(x => !x.StartsWith(Environment.CurrentDirectory))?
-                .Select(x => ResolveFile(x))?
-                .Where(x => !String.IsNullOrWhiteSpace(x)
-            );
-            if (libs != null)
-                foreach (var lib in libs)
-                {
-                    if (File.Exists(lib))
-                        yield return lib;
-                }
-        }
+        //public IEnumerable<string> GetSystemReferences()
+        //{
+        //    var libs = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
+        //        .Split(Path.PathSeparator)?
+        //        .Where(x => !x.StartsWith(Environment.CurrentDirectory))?
+        //        .Select(x => ResolveFile(x))?
+        //        .Where(x => !String.IsNullOrWhiteSpace(x)
+        //    );
+        //    if (libs != null)
+        //        foreach (var lib in libs)
+        //        {
+        //            if (File.Exists(lib) && CanUseReference(lib))
+        //                yield return lib;
+        //        }
+        //}
 
         public string ResolveFile(string path)
         {
@@ -234,40 +324,6 @@ namespace ModFramework.Modules.CSharp
             return new FileInfo(path).FullName;
         }
 
-        public IEnumerable<string> GetReferencedAssemblies()
-        {
-            var asms = AppDomain.CurrentDomain.GetAssemblies();
-            foreach (var asm in asms.Where(x => !x.IsDynamic))
-            {
-                if (!string.IsNullOrWhiteSpace(asm.Location) && File.Exists(asm.Location))
-                    yield return asm.Location;
-            }
-
-            foreach (var file in Directory.GetFiles(AppContext.BaseDirectory, "Syste*.dll"))
-            {
-                Assembly? assembly = null;
-                try
-                {
-                    assembly = AssemblyContext.LoadFromAssemblyPath(file);
-                }
-                catch (Exception ex)
-                {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"Skipping system ref: {Path.GetFileName(file)}\n{ex}");
-#endif
-                }
-                if (assembly is not null)
-                    yield return file;
-            }
-
-            var p = ResolveFile("netstandard.dll");
-            if (File.Exists(p))
-                yield return p;
-
-            p = ResolveFile("mscorlib.dll");
-            if (File.Exists(p))
-                yield return p;
-        }
 
         public MetadataReference? TryCreateRefFromFile(string path)
         {
@@ -294,25 +350,27 @@ namespace ModFramework.Modules.CSharp
 
             var refs = new List<MetadataReference>();
 
-            //var referenceAssemblies = DependencyContext.Default.CompileLibraries
-            //    .Where(cl => cl.Type == "referenceassembly")
-            //    .SelectMany(x => x.ResolveReferencePaths())
+            // kept here just as a reminder should i come back to need these
+            // the idea would be to add a [r|R]references.mfw.cs file
+            // for modules to define extra imports
+            //MetadataReference[] _ref =
+            //    DependencyContext.Default.CompileLibraries
+            //    .SelectMany(cl => cl.ResolveReferencePaths())
             //    .Select(asm => MetadataReference.CreateFromFile(asm))
             //    .ToArray();
 
-            if (options.Meta?.MetadataReferences != null)
-                foreach (var mref in options.Meta.MetadataReferences
-                    .Concat(
-                        GlobalAssemblies
-                        .Select(globalPath => TryCreateRefFromFile(globalPath))
-                        .Where(x => x is not null)
-                    )
-                )
+            void TryAddRef(MetadataReference mref)
+            {
+                if (!refs.Any(x => x.Display == mref.Display))
                 {
-                    if (!refs.Any(x => x.Display == mref.Display))
-                    {
-                        refs.Add(mref);
-                    }
+                    refs.Add(mref);
+                }
+            }
+
+            if (options.Meta?.MetadataReferences != null)
+                foreach (var mref in options.Meta.MetadataReferences)
+                {
+                    TryAddRef(mref);
                 }
 
             var compile_options = new CSharpCompilationOptions(options.OutputKind)
@@ -329,17 +387,9 @@ namespace ModFramework.Modules.CSharp
             ) ?? Enumerable.Empty<SyntaxTree>();
 
             var compilation = CSharpCompilation
-                .Create(assemblyName, syntaxTrees, options: compile_options)
+                .Create(assemblyName, syntaxTrees, options: compile_options, references: GetAllSystemReferences())
                 .AddReferences(refs)
             ;
-
-            var sysrefs = GetAllSystemReferences(out var libs);
-            foreach (var lib in sysrefs)
-            {
-                var mref = TryCreateRefFromFile(lib);
-                if (mref is not null)
-                    compilation = compilation.AddReferences(mref);
-            }
 
             var emitOptions = new EmitOptions(
                 debugInformationFormat: DebugInformationFormat.PortablePdb,
@@ -348,7 +398,7 @@ namespace ModFramework.Modules.CSharp
 
             var args = new CompilationContextArgs()
             {
-                CoreLibAssemblies = libs,
+                //CoreLibAssemblies = libs,
                 Context = new CompilationContext()
                 {
                     Compilation = compilation,
@@ -406,7 +456,7 @@ namespace ModFramework.Modules.CSharp
 
             return Modder?.MarkdownDocumentor;
         }
-         
+
         void ProcessXmlComment(string filePath, string type, SyntaxTrivia trivia)
         {
             var xml_node = trivia.GetStructure();
@@ -555,6 +605,7 @@ namespace ModFramework.Modules.CSharp
             {
                 if (Compilation is null) throw new Exception($"{nameof(Compilation)} is null");
                 if (DllStream is null) throw new Exception($"{nameof(DllStream)} is null");
+
                 return Compilation.Emit(
                       peStream: DllStream,
                       pdbStream: PdbStream,
@@ -624,13 +675,21 @@ namespace ModFramework.Modules.CSharp
 
                 if (AutoLoadAssemblies)
                 {
-                    if (PluginLoader.AssemblyLoader is null) throw new Exception($"{nameof(PluginLoader.AssemblyLoader)} is null");
-                    var asm = PluginLoader.AssemblyLoader.Load(ctx.DllStream, ctx.PdbStream);
-                    PluginLoader.AddAssembly(asm);
+                    //if (PluginLoader.AssemblyLoader is null) throw new Exception($"{nameof(PluginLoader.AssemblyLoader)} is null");
+                    //var asm = PluginLoader.AssemblyLoader.Load(ctx.DllStream, ctx.PdbStream);
+                    //PluginLoader.AddAssembly(asm);
+
+                    if (ModContext is null) throw new Exception($"{nameof(ModContext)} is null");
+                    var asm = ModContext.PluginLoader.AssemblyLoader.LoadFromStream(ctx.DllStream, ctx.PdbStream);
+                    ModContext.PluginLoader.AddAssembly(asm);
 
                     if (Modder != null)
                         Modder.ReadMod(ctx.DllPath);
-                    else Modifier.Apply(ModType.Runtime, null, new[] { asm }, optionalParams: ctx.ModificationParams); // relay on the runtime hook
+                    else
+                    {
+                        ModContext.Apply(ModType.Runtime, new[] { asm });
+                    }
+                    //else Modifier.Apply(ModType.Runtime, null, new[] { asm }, optionalParams: ctx.ModificationParams); // relay on the runtime hook
                 }
             }
             else
@@ -669,6 +728,12 @@ namespace ModFramework.Modules.CSharp
                 });
 
                 var compilationResult = ctx.Compile();
+#if DEBUG
+                if (!compilationResult.Success)
+                {
+
+                }
+#endif
 
                 ProcessCompilation(assemblyName, ctx, compilationResult);
 
@@ -689,27 +754,39 @@ namespace ModFramework.Modules.CSharp
 
             foreach (var file in files)
             {
-                if (AssemblyFound?.Invoke(file) == false)
+                if (ModContext?.PluginLoader.CanAddFile(file) == false)
                     continue; // event was cancelled, they do not wish to use this file. skip to the next.
 
-                Console.WriteLine($"[{ConsolePrefix}] Loading script: {file}");
-
                 var assemblyName = Path.GetFileNameWithoutExtension(file);
+
+                //var outAsmPath = Path.Combine(meta.OutputDirectory, $"{assemblyName}.dll");
+                //if (File.Exists(outAsmPath))
+                //    continue;
+
+                Console.WriteLine($"[{ConsolePrefix}] Loading script: {file}");
 
                 LoadScripts(meta, new[] { file }, outputKind, assemblyName, type);
             }
         }
 
-        void LoadTopLevelScripts(MetaData meta)
+        public string GetTargetAssemblyDirectory()
         {
-            var toplevel = Path.Combine(PluginsDirectory, "toplevel");
+            if (String.IsNullOrEmpty(ModContext?.TargetAssemblyName))
+                throw new ArgumentException($"{nameof(ModContext.TargetAssemblyName)} must be configured in {nameof(ModContext)}");
+
+            return ModContext.TargetAssemblyName.ToLower();
+        }
+
+        void LoadScripts(MetaData meta)
+        {
+            var toplevel = Path.Combine(PluginsDirectory, "mods"/*scripts are used by real scripts*/, GetTargetAssemblyDirectory());
             if (Directory.Exists(toplevel))
                 LoadSingleScripts(meta, toplevel, OutputKind.ConsoleApplication, "toplevel");
         }
 
         void LoadPatches(MetaData meta)
         {
-            var patches = Path.Combine(PluginsDirectory, "patches");
+            var patches = Path.Combine(PluginsDirectory, "patches", GetTargetAssemblyDirectory());
             if (Directory.Exists(patches))
                 LoadSingleScripts(meta, patches, OutputKind.DynamicallyLinkedLibrary, "patch");
         }
@@ -717,21 +794,18 @@ namespace ModFramework.Modules.CSharp
         public List<string> LoadModules(MetaData meta, string folder)
         {
             var paths = new List<string>();
-            var modules = Path.Combine(PluginsDirectory, folder);
+            var modules = Path.Combine(PluginsDirectory, folder, GetTargetAssemblyDirectory());
             if (Directory.Exists(modules))
             {
                 var moduleNames = Directory.EnumerateDirectories(modules, "*", SearchOption.TopDirectoryOnly);
 
                 foreach (var dir in moduleNames)
                 {
-                    if (AssemblyFound?.Invoke(dir) == false)
+                    if (ModContext?.PluginLoader.CanAddFile(dir) == false)
                         continue; // event was cancelled, they do not wish to use this file. skip to the next.
 
                     var files = Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories)
-                        .Where(file =>
-                        {
-                            return AssemblyFound?.Invoke(file) != false;
-                        });
+                        .Where(file => ModContext?.PluginLoader.CanAddFile(file) != false);
                     if (files.Any())
                     {
                         var moduleName = Path.GetFileName(dir);
@@ -756,10 +830,10 @@ namespace ModFramework.Modules.CSharp
             public string? OutputDirectory { get; set; }
         }
 
-        public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp");
+        ////public static string GlobalRootDirectory { get; set; } = Path.Combine("csharp");
 
-        public string PluginsDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "plugins");
-        public string GeneratedDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "generated");
+        //public string PluginsDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "plugins");
+        //public string GeneratedDirectory { get; set; } = Path.Combine(GlobalRootDirectory, "generated");
 
         public List<string> Constants { get; set; } = new List<string>();
 
@@ -771,22 +845,32 @@ namespace ModFramework.Modules.CSharp
             var constants = File.Exists(constants_path)
                 ? File.ReadAllLines(constants_path) : Enumerable.Empty<string>(); // bring across the generated constants
 
+            if (ModContext is not null)
+            {
+                constants = constants.Concat(ModContext.ReferenceConstants);
+            }
+
             var refs = LoadExternalRefs(PluginsDirectory).ToList();
 
-            if (Directory.Exists(GeneratedDirectory)) Directory.Delete(GeneratedDirectory, true);
-            Directory.CreateDirectory(GeneratedDirectory);
+            var dir = Path.Combine(GeneratedDirectory, GetTargetAssemblyDirectory());
+
+            if (ClearExistingModifications)
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+            Directory.CreateDirectory(dir);
 
             return new MetaData()
             {
                 MetadataReferences = refs,
                 Constants = Constants.Concat(constants),
-                OutputDirectory = GeneratedDirectory,
+                OutputDirectory = dir,
             };
         }
 
         void PreserveConstants(MetaData meta)
         {
-            if (Modder is not null)
+            if (Modder?.Module is not null)
             {
                 Modder.AddMetadata(MetaDataKey, Newtonsoft.Json.JsonConvert.SerializeObject(meta.Constants));
             }
@@ -829,10 +913,22 @@ namespace ModFramework.Modules.CSharp
             return constants;
         }
 
+        [Flags]
+        public enum EModification
+        {
+            None = 0,
+
+            Script = 1,
+            Patch = 2,
+            Module = 4,
+
+            All = Script | Patch | Module,
+        }
+
         /// <summary>
         /// Discovers .cs modifications or top-level scripts, compiles and registers them with MonoMod or ModFramework accordingly
         /// </summary>
-        public MetaData? LoadModifications(string? moduleFolder = null)
+        public MetaData? LoadModifications(string? moduleFolder = null, EModification types = EModification.All)
         {
             if (Directory.Exists(PluginsDirectory))
             {
@@ -840,9 +936,15 @@ namespace ModFramework.Modules.CSharp
 
                 var meta = CreateMetaData();
 
-                LoadTopLevelScripts(meta);
-                LoadPatches(meta);
-                LoadModules(meta, moduleFolder ?? "modules");
+                if ((types & EModification.Script) != 0)
+                    LoadScripts(meta);
+
+                if ((types & EModification.Patch) != 0)
+                    LoadPatches(meta);
+
+                if ((types & EModification.Module) != 0)
+                    LoadModules(meta, moduleFolder ?? "modules");
+
                 PreserveConstants(meta);
                 return meta;
             }

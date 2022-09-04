@@ -16,13 +16,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Mono.Cecil;
-using Mono.Cecil.Cil;
-using Mono.Collections.Generic;
+using MonoMod.Utils;
+using System;
+using System.Linq;
+using static ModFramework.ModContext;
 
 namespace ModFramework.Relinker
 {
@@ -36,50 +34,8 @@ namespace ModFramework.Relinker
         public AssemblyNameReference? AsNameReference() => Assembly?.AsNameReference();
 
         public override string ToString() => Type?.ToString() ?? "";
-
-        public static IEnumerable<SystemType> SystemTypes { get; set; } = GetSystemType();
-
-        static SystemType[] GetSystemType()
-        {
-            var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
-
-            if (assemblyPath == null) return new SystemType[] { };
-
-            var runtimeAssemblies = Directory.GetFiles(assemblyPath, "*.dll")
-                .Select(x =>
-                {
-                    try
-                    {
-                        return new
-                        {
-                            asm = AssemblyDefinition.ReadAssembly(x),
-                            path = x,
-                        };
-                    }
-                    catch //(Exception ex)
-                    {
-                        // discard assemblies that cecil cannot parse. e.g. api-ms**.dll on windows
-                        return null;
-                    }
-                })
-                .Where(x => x != null);
-
-            var forwardTypes = runtimeAssemblies.SelectMany(ra =>
-                ra!.asm.MainModule.ExportedTypes
-                    .Where(x => x.IsForwarder)
-                    .Select(x => new SystemType()
-                    {
-                        Type = x,
-                        Assembly = ra.asm,
-                        FilePath = ra.path,
-                    })
-            );
-
-            return forwardTypes.ToArray();
-        }
     }
 
-    [MonoMod.MonoModIgnore]
     public static partial class Extensions
     {
         public static AssemblyNameReference AsNameReference(this AssemblyDefinition assembly)
@@ -103,124 +59,85 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public class CoreLibRelinker : TypeRelinker
     {
+        protected CoreLibRelinker(ModFwModder modder) : base(modder)
+        {
+        }
+
+        public IFrameworkResolver FrameworkResolver { get; set; } = new DefaultFrameworkResolver();
+
         public event ResolveCoreLibHandler? Resolve;
 
-        private string? _SystemRefsOutputFolder;
-        /// <summary>
-        /// Optional Directory where System dll's can be output during the patch process.
-        /// </summary>
-        public string? SystemRefsOutputFolder
-        {
-            get => _SystemRefsOutputFolder;
-            set
-            {
-                if (!Directory.Exists(value))
-                    throw new DirectoryNotFoundException($"[{nameof(SystemRefsOutputFolder)}] cannot be set to non-existent folder: {value}");
-
-                _SystemRefsOutputFolder = value;
-            }
-        }
-        
         public bool ThrowResolveFailure { get; set; }
 
-        // TODO replace these gross things
-        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, IEnumerable<string> searchDirectories, params string[] inputs)
+        private EApplyResult OnApplying(ModType modType, ModFwModder? modder)
         {
-            PostProcessCoreLib(outputFolder, resourcesFolder, searchDirectories, null, inputs);
-        }
-
-        // TODO replace these gross things
-        public static void PostProcessCoreLib(string? outputFolder, string? resourcesFolder, IEnumerable<string>? searchDirectories, CoreLibRelinker? task, params string[] inputs)
-        {
-            if (String.IsNullOrWhiteSpace(outputFolder))
-                outputFolder = Environment.CurrentDirectory;
-
-            foreach (var input in inputs)
+            if (modder is not null)
             {
-                var fileName = Path.GetFileName(input);
-                using var mm = new ModFwModder()
+                if (modType == ModType.Shutdown)
                 {
-                    InputPath = input,
-                    OutputPath = Path.Combine(outputFolder, fileName),
-                    MissingDependencyThrow = false,
-                    //LogVerboseEnabled = true,
-                    // PublicEverything = true, // this is done in setup
-
-                    GACPaths = new string[] { } // avoid MonoMod looking up the GAC, which causes an exception on .netcore
-                };
-                mm.Log($"[OTAPI] Processing corelibs to be net6: {fileName}");
-
-                var extractor = new ResourceExtractor();
-                var embeddedResourcesDir = extractor.Extract(input, resourcesFolder);
-
-                mm.AssemblyResolver.AddSearchDirectory(embeddedResourcesDir);
-
-                if (searchDirectories != null)
-                    foreach (var folder in searchDirectories)
-                        mm.AssemblyResolver.AddSearchDirectory(folder);
-
-                mm.Read();
-
-                mm.AddTask(task ?? new CoreLibRelinker());
-
-                mm.MapDependencies();
-                mm.AutoPatch();
-
-                mm.Write();
+                    modder.ModContext.OnApply -= OnApplying;
+                }
+                else if (modType == ModType.PreWrite)
+                {
+                    for (var i = modder.Module.AssemblyReferences.Count - 1; i >= 0; i--)
+                    {
+                        var aref = modder.Module.AssemblyReferences[i];
+                        if (aref.Name == "mscorlib"
+                            || aref.Name == "System.Private.CoreLib"
+                        )
+                        {
+                            modder.Module.AssemblyReferences.RemoveAt(i);
+                        }
+                    }
+                }
             }
+
+            return EApplyResult.Continue;
         }
 
         void PatchTargetFramework()
         {
             if (Modder is null) throw new ArgumentNullException(nameof(Modder));
             var tfa = Modder.Module.Assembly.GetTargetFrameworkAttribute();
+
+            // remove existing, if any
             if (tfa != null)
             {
-                tfa.ConstructorArguments[0] = new CustomAttributeArgument(
-                    tfa.ConstructorArguments[0].Type,
-                    ".NETCoreApp,Version=v6.0"
-                );
-                var fdm = tfa.Properties.Single();
-                tfa.Properties[0] = new CustomAttributeNamedArgument(
-                    fdm.Name,
-                    new CustomAttributeArgument(fdm.Argument.Type, "")
-                );
+                Modder.Module.Assembly.CustomAttributes.Remove(tfa);
             }
+
+            // add a new one
+            var ctor = Modder.Module.ImportReference(Modder.FindType(typeof(System.Runtime.Versioning.TargetFrameworkAttribute).FullName).Resolve().FindMethod("System.Void .ctor(System.String)"));
+            Modder.Module.Assembly.CustomAttributes.Add(new(ctor)
+            {
+                ConstructorArguments =
+                {
+                    new (Modder.Module.TypeSystem.String, ".NETCoreApp,Version=v6.0")
+                },
+                Properties =
+                {
+                    new ("FrameworkDisplayName", new (Modder.Module.TypeSystem.String, ""))
+                }
+            });
         }
 
-        protected override void OnInit()
+        public override void Registered()
+        {
+            // prepare target framework. cannot use the shim libraries otherwise you end up with System.Private.CoreLib refs
+            var fw = FrameworkResolver.FindFramework();
+            Modder.AssemblyResolver.AddSearchDirectory(fw); // allow monomod to resolve System.Runtime
+
+            //SystemTypes = GetSystemType(fw);
+
+            base.Registered();
+
+            Modder.ModContext.OnApply += OnApplying;
+        }
+
+        public override void PreWrite()
         {
             PatchTargetFramework();
-            base.OnInit();
-        }
-
-        AssemblyNameReference? ResolveSystemType(TypeReference type)
-        {
-            var searchType = type.FullName;
-
-            var matches = SystemType.SystemTypes
-                .Where(x => x.Type?.FullName == searchType
-                    && x.Assembly?.Name?.Name != "mscorlib"
-                    && x.Assembly?.Name?.Name != "System.Private.CoreLib"
-                )
-                // pick the assembly with the highest version.
-                // TODO: consider if this will ever need to target other fw's
-                .OrderByDescending(x => x.Assembly?.Name?.Version);
-            var match = matches.FirstOrDefault();
-
-            if (match is not null && match.FilePath is not null)
-            {
-                // this is only needed for ilspy to pick up .net5 libs on osx
-                if (!String.IsNullOrWhiteSpace(SystemRefsOutputFolder))
-                {
-                    var filename = Path.GetFileName(match.FilePath);
-                    if (!File.Exists(filename))
-                        File.Copy(match.FilePath, Path.Combine(SystemRefsOutputFolder, filename));
-                }
-
-                return match.AsNameReference();
-            }
-            return null;
+            base.PreWrite();
         }
 
         AssemblyNameReference? ResolveDependency(TypeReference type)
@@ -249,16 +166,6 @@ namespace ModFramework.Relinker
             return null;
         }
 
-        AssemblyNameReference? ResolveRedirection(TypeReference type)
-        {
-            //foreach (var mod in Modder.Mods)
-            //{
-
-            //}
-
-            return null;
-        }
-
         AssemblyNameReference? ResolveAssembly(TypeReference type)
         {
             var res = Resolve?.Invoke(type);
@@ -266,17 +173,9 @@ namespace ModFramework.Relinker
             {
                 if (type.Scope is AssemblyNameReference anr)
                 {
-                    var redirected = ResolveRedirection(type);
-                    if (redirected is not null)
-                        return redirected;
-
                     var dependencyMatch = ResolveDependency(type);
                     if (dependencyMatch is not null)
                         return dependencyMatch;
-
-                    var systemMatch = ResolveSystemType(type);
-                    if (systemMatch is not null)
-                        return systemMatch;
 
                     if (ThrowResolveFailure)
                         throw new Exception($"Relink failed. Unable to resolve {type.FullName}");

@@ -7,6 +7,8 @@ namespace ModFramework
 {
     public class ModificationMdDocumentor : MarkdownDocumentor
     {
+        public ModificationMdDocumentor(string outputFileName) : base(outputFileName) { }
+
         protected override bool CanWrite(bool header, ref string line)
         {
             if (line.Contains("@doc"))
@@ -33,7 +35,7 @@ namespace ModFramework
                 MarkdownDocumentor.RegisterTypeFormatter<BasicComment>((header, data) => header ?
                     HeaderFormat
                     :
-                    $"| {data?.Type} | [{Path.GetFileName(data?.FilePath)}]({data?.FilePath}) | {data?.Comments } |"
+                    $"| {data?.Type} | [{Path.GetFileName(data?.FilePath)}]({data?.FilePath}) | {data?.Comments} |"
                 );
             }
         }
@@ -52,6 +54,12 @@ namespace ModFramework
 
         public delegate void WriteLineHandler(bool header, ref string input, ref bool handled);
         public event WriteLineHandler? WriteLine;
+        public string OutputFileName { get; set; }
+
+        public MarkdownDocumentor(string outputFileName)
+        {
+            OutputFileName = outputFileName;
+        }
 
         public static bool TypeFormatterDefined<TType>() => _typeFormatters.ContainsKey(typeof(TType));
         public static void RegisterTypeFormatter<TType>(TypeFormatter<TType> handler)
@@ -104,8 +112,11 @@ namespace ModFramework
             return Enumerable.Empty<TMetaData>();
         }
 
+        public void Write() => Write(OutputFileName);
+
         public void Write(string filename)
         {
+            if (File.Exists(filename)) File.Delete(filename);
             using var writer = new StreamWriter(filename);
 
             foreach (var pair in data)

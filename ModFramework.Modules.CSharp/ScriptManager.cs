@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.Extensions.DependencyModel;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -61,7 +62,7 @@ namespace ModFramework.Modules.CSharp
                 Globals = null;
                 _script = null;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Console.Error.WriteLine(ex);
             }
@@ -122,18 +123,28 @@ namespace ModFramework.Modules.CSharp
 
         public ScriptManager(
             string scriptFolder,
-            ModFwModder? modder
+            ModFwModder? modder,
+            ModContext context,
+            CSharpLoader? loader
         )
         {
-            ScriptFolder = scriptFolder;
+            Loader = loader ?? new CSharpLoader(context);
+            ScriptFolder = Path.Combine(scriptFolder, Loader.GetTargetAssemblyDirectory());
             Modder = modder;
 
-            Loader = new CSharpLoader();
             MetaData = Loader.CreateMetaData();
 
+            //MetadataReference[] _ref =
+            //DependencyContext.Default.CompileLibraries
+            //    .First(cl => cl.Name == "Microsoft.NETCore.App")
+            //    .ResolveReferencePaths()
+            //    .Select(asm => MetadataReference.CreateFromFile(asm))
+            //    .ToArray();
             ScriptOptions = ScriptOptions.Default
                 .WithReferences((MetaData.MetadataReferences ?? Enumerable.Empty<MetadataReference>()).Union(
-                    Loader.GetAllSystemReferences().Select(f => MetadataReference.CreateFromFile(f))
+                    //Loader.GetAllSystemReferences().Select(f => MetadataReference.CreateFromFile(f))
+                    //_ref
+                    Loader.GetAllSystemReferences()
                  ))
                 .WithEmitDebugInformation(true)
                 .WithFileEncoding(Encoding.UTF8)
@@ -159,6 +170,8 @@ namespace ModFramework.Modules.CSharp
 
         public void Initialise()
         {
+            Directory.CreateDirectory(ScriptFolder);
+
             var scripts = Directory.GetFiles(ScriptFolder, "*.cs", SearchOption.TopDirectoryOnly);
             foreach (var file in scripts)
             {

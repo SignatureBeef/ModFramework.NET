@@ -19,20 +19,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace ModFramework.Modules.ClearScript
+namespace ModFramework.Modules.ClearScript;
+
+public class Program
 {
-    public class Program
+    public static void Main()
     {
-        public static void Main()
-        {
-            Directory.CreateDirectory(Hooks.RootFolder);
+        Directory.CreateDirectory(Hooks.RootFolder);
 
-            Console.WriteLine($"[JS] Loading ClearScript files from ./{Hooks.RootFolder}");
+        Console.WriteLine($"[JS] Loading ClearScript files from ./{Hooks.RootFolder}");
 
-            var ScriptManager = new ScriptManager(Hooks.RootFolder, null);
-            ScriptManager.Initialise();
-            ScriptManager.WatchForChanges();
-            ScriptManager.Cli();
-        }
+        var ctx = new ModContext("TEST");
+        var ScriptManager = new ScriptManager(ctx, Hooks.RootFolder, null);
+        ScriptManager.Initialise();
+        ScriptManager.WatchForChanges();
+        ScriptManager.Cli();
     }
 }

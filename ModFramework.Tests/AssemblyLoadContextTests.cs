@@ -12,32 +12,31 @@ namespace ModFramework.Tests
     [TestClass]
     public class AssemblyLoadContextTests
     {
+        static string ModificationsDirectory => Path.Combine(Environment.CurrentDirectory, "modifications");
+
         [TestMethod]
         public void EnsureModAttributeWorks()
         {
-            var ctx = new TestDependencyResolver();
-            PluginLoader.AssemblyLoader = new TestAssemblyLoader(ctx);
-            CSharpLoader.AssemblyContextDefault = ctx;
+            ModContext ctx = new("TEST");
 
-            Directory.CreateDirectory("modifications");
+            Assert.IsNotNull(ctx.PluginLoader);
+            Assert.IsNotNull(ctx.PluginLoader.AssemblyLoader);
+
+            Directory.CreateDirectory(ModificationsDirectory);
             CopyMod("ModFramework.Modules.CSharp.dll");
             CopyMod("ModFramework.Modules.ClearScript.dll");
             CopyMod("ModFramework.Modules.Lua.dll");
 
-            PluginLoader.TryLoad();
+            ctx.PluginLoader.AddFromFolder(ModificationsDirectory);
 
-            Assert.IsNotNull(PluginLoader.Assemblies);
+            var mods = ctx.PluginLoader.DiscoverModificationAttributes();
 
-            var mods = ModificationAttribute
-                .Discover(PluginLoader.Assemblies)
-                .ToArray();
-
-            Assert.IsTrue(mods.Length > 0);
+            Assert.IsTrue(mods.Count() > 0);
         }
 
         void CopyMod(string file)
         {
-            var dest = Path.Combine("modifications", file);
+            var dest = Path.Combine(ModificationsDirectory, file);
             if (File.Exists(dest)) File.Delete(dest);
             File.Copy(file, dest); ;
         }

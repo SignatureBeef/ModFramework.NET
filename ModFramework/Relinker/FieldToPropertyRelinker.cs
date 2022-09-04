@@ -32,6 +32,15 @@ namespace ModFramework.Relinker
         }
     }
 
+    public static partial class Extensions
+    {
+        public static void AddTask<T>(this ModFwModder modder, FieldDefinition field, PropertyDefinition property)
+            where T : FieldToPropertyRelinker
+        {
+            modder.AddTask<T>(field, property);
+        }
+    }
+
     [MonoMod.MonoModIgnore]
     public class FieldToPropertyRelinker : RelinkTask
     {
@@ -44,7 +53,8 @@ namespace ModFramework.Relinker
 
         public event EventHandler<FieldToPropertyChangeEventArgs>? OnChanged;
 
-        public FieldToPropertyRelinker(FieldDefinition field, PropertyDefinition property)
+        protected FieldToPropertyRelinker(ModFwModder modder, FieldDefinition field, PropertyDefinition property)
+            : base(modder)
         {
             this.Field = field;
             this.Property = property;
@@ -92,7 +102,7 @@ namespace ModFramework.Relinker
                                 }
                                 else if (instr.OpCode == OpCodes.Stfld || instr.OpCode == OpCodes.Stsfld)
                                 {
-                                    if(this.setReference is null) throw new ArgumentNullException(nameof(this.setReference));   
+                                    if (this.setReference is null) throw new ArgumentNullException(nameof(this.setReference));
                                     instr.OpCode = OpCodes.Call;
                                     instr.Operand = ResolveReference(this.setReference);
                                 }

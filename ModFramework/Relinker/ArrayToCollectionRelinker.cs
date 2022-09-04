@@ -18,11 +18,23 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using MonoMod;
-using ModFramework.Relinker;
 
 namespace ModFramework.Relinker
 {
+    public static partial class Extensions
+    {
+        public static void AddTask<T>(this ModFwModder modder, TypeDefinition sourceType)
+            where T : ArrayToCollectionRelinker
+        {
+            modder.AddTask<T>(sourceType);
+        }
+
+        public static void RelinkAsCollection(this TypeDefinition sourceType, ModFwModder modder)
+        {
+            modder.AddTask<ArrayToCollectionRelinker>(sourceType);
+        }
+    }
+
     [MonoMod.MonoModIgnore]
     public class ArrayToCollectionRelinker : RelinkTask
     {
@@ -38,7 +50,8 @@ namespace ModFramework.Relinker
 
         public MethodReference CreateCollectionMethod { get; set; }
 
-        public ArrayToCollectionRelinker(TypeDefinition type, MonoModder modder)
+        protected ArrayToCollectionRelinker(ModFwModder modder, TypeDefinition type)
+            : base(modder)
         {
             this.Type = type;
 
@@ -152,15 +165,6 @@ namespace ModFramework.Relinker
 
 namespace ModFramework
 {
-    [MonoMod.MonoModIgnore]
-    public static class ArrayToCollectionRelinkerMixin
-    {
-        public static void RelinkAsCollection(this TypeDefinition sourceType, IRelinkProvider relinkProvider, MonoModder modder)
-        {
-            relinkProvider.AddTask(new ArrayToCollectionRelinker(sourceType, modder));
-        }
-    }
-
     public interface ICollection<TItem>
     {
         TItem this[int x, int y] { get; set; }

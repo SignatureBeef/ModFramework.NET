@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net6.0;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <PackageVersion>1.0.46-alpha</PackageVersion>
-    <Version>1.0.46.0-alpha</Version>
+    <TargetFramework>net6.0</TargetFramework>
+    <PackageVersion>1.1.0-alpha</PackageVersion>
+    <Version>1.1.0.0-alpha</Version>
     <Authors>DeathCradle</Authors>
     <Copyright>DeathCradle</Copyright>
     <PackageId>ModFramework.Modules.ClearScript</PackageId>
@@ -13,7 +13,6 @@
     <Summary>Enables ES6 javascript plugins</Summary>
     <Title>ModFramework ClearScript</Title>
     <Description>ModFramework module to enable javascript plugins via Microsoft's ClearScript.</Description>
-    <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
@@ -26,14 +25,14 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.ClearScript" Version="7.3.1" />
-    <PackageReference Include="MonoMod" Version="22.5.1.1" />
+    <PackageReference Include="MonoMod" Version="22.6.3.1" />
     <PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.3.1" />
     <PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.3.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ModFramework\ModFramework.csproj" />
+    <Folder Include="Typings\" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Typings\" />
+    <ProjectReference Include="..\ModFramework\ModFramework.csproj" />
   </ItemGroup>
 </Project>

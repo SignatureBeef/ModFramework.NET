@@ -133,20 +133,21 @@ namespace ModFramework.Modules.Lua
     {
         public string ScriptFolder { get; set; }
 
-        public static event FileFoundHandler? FileFound;
-
         private List<LuaScript> _scripts { get; } = new List<LuaScript>();
         private FileSystemWatcher? _watcher { get; set; }
 
         public ModFwModder? Modder { get; set; }
+        public ModContext ModContext { get; set; }
 
         public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
         public ScriptManager(
+            ModContext context,
             string scriptFolder,
             ModFwModder? modder
         )
         {
+            ModContext = context;
             ScriptFolder = scriptFolder;
             Modder = modder;
         }
@@ -187,7 +188,7 @@ namespace ModFramework.Modules.Lua
             var scripts = Directory.GetFiles(ScriptFolder, "*.lua");
             foreach (var file in scripts)
             {
-                if (FileFound?.Invoke(file) == false)
+                if (ModContext?.PluginLoader.CanAddFile(file) == false)
                     continue; // event was cancelled, they do not wish to use this file. skip to the next.
 
                 CreateScriptFromFile(file);

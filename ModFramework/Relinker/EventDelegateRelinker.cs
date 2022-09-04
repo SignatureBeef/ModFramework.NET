@@ -28,10 +28,12 @@ namespace ModFramework.Relinker
     [MonoMod.MonoModIgnore]
     public class EventDelegateRelinker : RelinkTask
     {
+        protected EventDelegateRelinker(ModFwModder modder) : base(modder) { }
+
         public override void Relink(EventDefinition typeEvent)
         {
             var delegateMember = typeEvent.DeclaringType.Fields.SingleOrDefault(f => f.Name == typeEvent.Name);
-            if(delegateMember?.IsPublic == true)
+            if (delegateMember?.IsPublic == true)
             {
                 delegateMember.IsPublic = false;
                 delegateMember.IsPrivate = true;

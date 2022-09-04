@@ -23,7 +23,10 @@ using MonoMod;
 using MonoMod.Utils;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using RF = System.Reflection;
 
 namespace ModFramework
 {
@@ -39,8 +42,10 @@ namespace ModFramework
 
         public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
-        public bool EnableWriteEvents { get; set; }
+        //public bool EnableWriteEvents { get; set; }
         public bool Silent { get; set; } = true;
+
+        public ModContext ModContext { get; set; }
 
         public new DefaultAssemblyResolver AssemblyResolver
         {
@@ -48,10 +53,25 @@ namespace ModFramework
             set => base.AssemblyResolver = value;
         }
 
+        public virtual T AddTask<T>(params object[] param)
+            where T : RelinkTask
+        {
+            IEnumerable<object> args = new[] { this };
+            var task = (T?)Activator.CreateInstance(typeof(T),
+                RF.BindingFlags.Public | RF.BindingFlags.NonPublic | RF.BindingFlags.Instance,
+                null,
+                args.Concat(param).ToArray(),
+                CultureInfo.CurrentCulture
+            );
+            if (task is null) throw new Exception($"Failed to create type: {typeof(T).FullName}");
+            AddTask(task);
+            return task;
+        }
+
         public virtual void AddTask(RelinkTask task)
         {
             task.Modder = this;
-            task.RelinkProvider = this;
+            //task.RelinkProvider = this;
             TaskList.Add(task);
             TaskList.Sort((a, b) => a.Order - b.Order);
             task.Registered();
@@ -69,8 +89,9 @@ namespace ModFramework
                 base.Log(text);
         }
 
-        public ModFwModder()
+        public ModFwModder(ModContext context)
         {
+            ModContext = context;
             MethodParser = (MonoModder modder, MethodBody body, Instruction instr, ref int instri) => true;
             MethodRewriter = (MonoModder modder, MethodDefinition method) =>
             {
@@ -90,11 +111,20 @@ namespace ModFramework
                 OnRewritingMethodBody?.Invoke(modder, body, instr, instri);
             };
 
-            AddTask(new EventDelegateRelinker());
+            AddTask<EventDelegateRelinker>();
+        }
+
+        public override void MapDependencies()
+        {
+            ModContext.Apply(ModType.PreMapDependencies, this);
+            base.MapDependencies();
+            ModContext.Apply(ModType.PostMapDependencies, this);
         }
 
         public override void Read()
         {
+            ModContext.Apply(ModType.PreRead, this);
+
             base.Read();
 
             // bit of a hack, but saves having to roll our own and having to try/catch the shit out of it (which actually drags out
@@ -110,19 +140,40 @@ namespace ModFramework
                 cache.Add(this.Module.Assembly.FullName, this.Module.Assembly);
             }
 
-            Modifier.Apply(ModType.Read, this);
+            ModContext.Apply(ModType.Read, this);
         }
 
         public override void PatchRefs()
         {
-            Modifier.Apply(ModType.PreMerge, this);
+            ModContext.Apply(ModType.PreMerge, this);
             base.PatchRefs();
+            ModContext.Apply(ModType.PostMerge, this);
+        }
+
+        public override void PatchType(TypeDefinition type)
+        {
+            base.PatchType(type);
+            RelinkType(type);
         }
 
         public override void PatchRefsInType(TypeDefinition type)
         {
             base.PatchRefsInType(type);
+            RelinkType(type);
+        }
 
+        public override void PatchEvent(TypeDefinition targetType, EventDefinition srcEvent, HashSet<MethodDefinition>? propMethods = null)
+        {
+            base.PatchEvent(targetType, srcEvent, propMethods);
+
+            EventDefinition targetEvent = targetType.FindEvent(srcEvent.Name);
+
+            RunTasks(t => t.Relink(targetEvent));
+            RunTasks(t => t.Relink(srcEvent));
+        }
+
+        private void RelinkType(TypeDefinition type)
+        {
             RunTasks(t => t.Relink(type));
 
             if (type.HasEvents)
@@ -136,6 +187,16 @@ namespace ModFramework
             if (type.HasProperties)
                 foreach (var property in type.Properties)
                     RunTasks(t => t.Relink(property));
+
+            if (type.HasMethods)
+                foreach (var method in type.Methods)
+                    RunTasks(t => t.Relink(method));
+        }
+
+        public override void PatchField(TypeDefinition targetType, FieldDefinition field)
+        {
+            base.PatchField(targetType, field);
+            RunTasks(t => t.Relink(field));
         }
 
         public override void PatchRefsInMethod(MethodDefinition method)
@@ -151,11 +212,11 @@ namespace ModFramework
 
         public override void AutoPatch()
         {
-            Modifier.Apply(ModType.PrePatch, this);
+            ModContext.Apply(ModType.PrePatch, this);
 
             base.AutoPatch();
 
-            Modifier.Apply(ModType.PostPatch, this);
+            ModContext.Apply(ModType.PostPatch, this);
 
             foreach (var relinked in RelinkModuleMap)
             {
@@ -173,19 +234,23 @@ namespace ModFramework
 
         public override void Write(Stream? output = null, string? outputPath = null)
         {
+            ModContext.Apply(ModType.PreWrite, this);
+
+            RunTasks(t => t.PreWrite());
+
             base.Write(output, outputPath);
 
-            if (EnableWriteEvents)
-                Modifier.Apply(ModType.Write, this);
+            ModContext.Apply(ModType.Write, this);
         }
 
         public override void Dispose()
         {
-            foreach(var task in TaskList)
+            ModContext.Apply(ModType.Shutdown, this);
+
+            foreach (var task in TaskList)
                 task.Dispose();
             TaskList.Clear();
 
-            Modifier.Apply(ModType.Shutdown, this);
             base.Dispose();
         }
     }

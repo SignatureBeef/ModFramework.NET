@@ -21,56 +21,71 @@ using System;
 using System.IO;
 using System.Reflection;
 
-namespace ModFramework.Modules.CSharp
+namespace ModFramework.Modules.CSharp;
+
+[MonoMod.MonoModIgnore]
+public static class Hooks
 {
-    [MonoMod.MonoModIgnore]
-    public static class Hooks
+    public static ScriptManager? ScriptManager { get; set; } // prevent GC and issues with file watching
+    public static CSharpLoader? Loader { get; set; }
+
+    [Modification(ModType.Read, "Loading CSharp script interface")]
+    public static void OnModding(ModFwModder modder)
     {
-        public static ScriptManager? ScriptManager { get; set; } // prevent GC and issues with file watching
+        Loader = new CSharpLoader(modder.ModContext)
+            .SetModder(modder);
 
-        [Modification(ModType.Read, "Loading CSharp script interface")]
-        public static void OnModding(ModFwModder modder)
-        {
-            new CSharpLoader()
-                .SetModder(modder)
-                .LoadModifications();
-        }
+        Loader.LoadModifications();
+    }
 
-        [Modification(ModType.Write, "Compiling CSharp modules based on produced binary")]
-        public static void OnPatched()
+    [Modification(ModType.Write, "Compiling CSharp modules based on produced binary")]
+    public static void OnPatched(ModContext modContext)
+    {
+        if (Loader is null)
         {
-            new CSharpLoader()
+            Loader = new CSharpLoader(modContext)
                 .SetAutoLoadAssemblies(false)
-                .LoadModifications("modules-patched");
+                .SetClearExistingModifications(false)
+            ;
+            Loader.LoadModifications("modules-patched");
         }
-
-        [Modification(ModType.Runtime, "Loading CSharp script interface")]
-        public static void OnRunning(Assembly runtimeAssembly)
+        else
         {
-            new CSharpLoader()
-                .AddConstants(runtimeAssembly)
-                .LoadModifications();
-
-            Launch();
+            Loader.SetContext(modContext)
+                .SetAutoLoadAssemblies(false)
+                .SetClearExistingModifications(false)
+                .LoadModifications("modules-patched", CSharpLoader.EModification.Module);
         }
 
-        static void Launch(ModFwModder? modder = null)
-        {
-            var rootFolder = Path.Combine(Path.Combine(CSharpLoader.GlobalRootDirectory, "plugins", "scripts"));
-            Directory.CreateDirectory(rootFolder);
+    }
 
-            Console.WriteLine($"[CS] Loading CSharp scripts from ./{rootFolder}");
+    [Modification(ModType.Runtime, "Loading CSharp script interface")]
+    public static void OnRunning(ModContext modContext, Assembly runtimeAssembly)
+    {
+        var loader = new CSharpLoader(modContext)
+            .AddConstants(runtimeAssembly);
 
-            ScriptManager = new ScriptManager(rootFolder, modder);
-            ScriptManager.Initialise();
-            ScriptManager.WatchForChanges();
-        }
+        loader.LoadModifications();
 
-        [Modification(ModType.Shutdown, "Shutting down the CSharp script interface")]
-        public static void OnShutdown()
-        {
-            ScriptManager?.Dispose();
-            ScriptManager = null;
-        }
+        Launch(loader, modContext);
+    }
+
+    static void Launch(CSharpLoader loader, ModContext modContext, ModFwModder? modder = null)
+    {
+        var rootFolder = Path.Combine(Path.Combine(loader.PluginsDirectory, "scripts"));
+        Directory.CreateDirectory(rootFolder);
+
+        Console.WriteLine($"[CS] Loading CSharp scripts from ./{new Uri(new DirectoryInfo(loader.PluginsDirectory).Parent.FullName).MakeRelativeUri(new(rootFolder))}");
+
+        ScriptManager = new ScriptManager(rootFolder, modder, modContext, loader);
+        ScriptManager.Initialise();
+        ScriptManager.WatchForChanges();
+    }
+
+    [Modification(ModType.Shutdown, "Shutting down the CSharp script interface")]
+    public static void OnShutdown()
+    {
+        ScriptManager?.Dispose();
+        ScriptManager = null;
     }
 }

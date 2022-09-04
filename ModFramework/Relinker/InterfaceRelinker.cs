@@ -18,14 +18,21 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using Mono.Cecil.Rocks;
 using MonoMod.Utils;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace ModFramework.Relinker
 {
+    public static partial class Extensions
+    {
+        public static void AddTask<T>(this ModFwModder modder, TypeReference searchType, TypeReference replacementType)
+            where T : InterfaceRelinker
+        {
+            modder.AddTask<T>(searchType, replacementType);
+        }
+    }
+
     [MonoMod.MonoModIgnore]
     public class InterfaceRelinker : RelinkTask
     {
@@ -33,11 +40,18 @@ namespace ModFramework.Relinker
         public TypeReference ReplacementType { get; set; }
         public override int Order => 150;
 
-        public InterfaceRelinker(TypeReference searchType, TypeReference replacementType)
+        public TypeDefinition SearchTypeDef { get; }
+        public TypeDefinition ReplacementTypeDef { get; }
+
+        protected InterfaceRelinker(ModFwModder modder, TypeReference searchType, TypeReference replacementType)
+            : base(modder)
         {
             SearchType = searchType;
             ReplacementType = replacementType;
             Console.WriteLine($"[ModFw] Relinking interface {searchType.FullName}=>{replacementType.FullName}");
+
+            SearchTypeDef = SearchType.Resolve();
+            ReplacementTypeDef = ReplacementType.Resolve();
         }
 
         public override void Relink(TypeDefinition type)
@@ -136,7 +150,7 @@ namespace ModFramework.Relinker
             if (instr.Operand is MethodReference methodRef)
             {
                 var methodRefIsDeclaredByType = methodRef.DeclaringType.FullName == SearchType.FullName;
-                var isSelfDefined = SearchType.Resolve().Methods.Any(x => x.FullName == methodRef.FullName);
+                var isSelfDefined = SearchTypeDef.Methods.Any(x => x.FullName == methodRef.FullName);
 
                 // if the method is in the class we are replacing, and the method is self defined we dont need to replace it
                 if (methodIsDeclaredByType && isSelfDefined)
@@ -253,9 +267,15 @@ namespace ModFramework.Relinker
                 });
 
                 // upgrade call to callvirt
-                if (instr.OpCode == OpCodes.Call && methodRef.DeclaringType.FullName == ReplacementType.FullName)
-                    instr.OpCode = OpCodes.Callvirt;
-
+                if (instr.OpCode == OpCodes.Call && (
+                    methodRef.DeclaringType.FullName == ReplacementType.FullName
+                    || methodRef.DeclaringType.FullName == SearchType.FullName
+                ))
+                {
+                    var isReplaced = ReplacementTypeDef.Methods.Any(x => x.Name == methodRef.Name);
+                    if (isReplaced)
+                        instr.OpCode = OpCodes.Callvirt;
+                }
             }
 
             if (instr.Operand is FieldReference fieldReference)

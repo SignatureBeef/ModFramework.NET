@@ -20,41 +20,40 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace ModFramework.Modules.Lua
+namespace ModFramework.Modules.Lua;
+
+public static class Hooks
 {
-    public static class Hooks
+    public static ScriptManager? ScriptManager { get; set; }
+
+    [Modification(ModType.Runtime, "Loading Lua script interface")]
+    public static void OnRunning(ModContext context)
     {
-        public static ScriptManager? ScriptManager { get; set; }
+        Launch(context);
+    }
 
-        [Modification(ModType.Runtime, "Loading Lua script interface")]
-        public static void OnRunning()
-        {
-            Launch();
-        }
+    [Modification(ModType.Read, "Loading Lua script interface")]
+    public static void OnModding(ModFwModder modder)
+    {
+        Launch(modder.ModContext, modder);
+    }
 
-        [Modification(ModType.Read, "Loading Lua script interface")]
-        public static void OnModding(ModFwModder modder)
-        {
-            Launch(modder);
-        }
+    static void Launch(ModContext context, ModFwModder? modder = null)
+    {
+        const string root = "lua";
+        Directory.CreateDirectory(root);
 
-        static void Launch(ModFwModder? modder = null)
-        {
-            const string root = "lua";
-            Directory.CreateDirectory(root);
+        Console.WriteLine($"[LUA] Loading Lua scripts from ./{root}");
 
-            Console.WriteLine($"[LUA] Loading Lua scripts from ./{root}");
+        ScriptManager = new ScriptManager(context, root, modder);
+        ScriptManager.Initialise();
+        ScriptManager.WatchForChanges();
+    }
 
-            ScriptManager = new ScriptManager(root, modder);
-            ScriptManager.Initialise();
-            ScriptManager.WatchForChanges();
-        }
-
-        [Modification(ModType.Shutdown, "Shutting down the Lua script interface")]
-        public static void OnShutdown()
-        {
-            ScriptManager?.Dispose();
-            ScriptManager = null;
-        }
+    [Modification(ModType.Shutdown, "Shutting down the Lua script interface")]
+    public static void OnShutdown()
+    {
+        ScriptManager?.Dispose();
+        ScriptManager = null;
     }
 }

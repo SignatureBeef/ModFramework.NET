@@ -414,7 +414,7 @@ namespace ModFramework
         public static CustomAttribute? GetTargetFrameworkAttribute(this AssemblyDefinition assembly)
         {
             return assembly.CustomAttributes.SingleOrDefault(ca =>
-                ca.AttributeType.FullName == "System.Runtime.Versioning.TargetFrameworkAttribute");
+                ca.AttributeType.FullName == typeof(System.Runtime.Versioning.TargetFrameworkAttribute).FullName);
         }
 
         /// <summary>
@@ -548,5 +548,14 @@ namespace ModFramework
         /// <returns>Definition of the property</returns>
         public static PropertyDefinition Property(this TypeDefinition type, string name)
             => type.Properties.Single(x => x.Name == name);
+
+
+        public static void SetAnyCPU(this ModuleDefinition module)
+        {
+            module.Architecture = TargetArchitecture.I386;
+            module.Attributes = ModuleAttributes.ILOnly;
+        }
+
+        public static void SetAnyCPU(this ModFwModder modder) => modder.Module.SetAnyCPU();
     }
 }

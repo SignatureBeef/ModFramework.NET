@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-    <TargetFrameworks>net6.0;netstandard2.0;netstandard2.1</TargetFrameworks>
-		<PackageVersion>1.0.46-alpha</PackageVersion>
-		<Version>1.0.46.0-alpha</Version>
+    <TargetFramework>net6.0</TargetFramework>
+		<PackageVersion>1.1.0-alpha</PackageVersion>
+		<Version>1.1.0.0-alpha</Version>
 		<PackageId>ModFramework</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -15,13 +15,14 @@
 		<Title>ModFramework</Title>
 		<Description>A tool for rewriting .net binaries. Can allow rewriting of Types to Interfaces, Arrays to Extensible Collections, or even Fields to Properties.</Description>
 		<PackageReleaseNotes>Initial alpha version of the ModFramework.</PackageReleaseNotes>
-		<LangVersion>9.0</LangVersion>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="MonoMod" Version="22.5.1.1" />
-		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.5.1.1" />
+    <!--<PackageReference Include="MonoMod" Version="22.8.31.1-prerelease" />-->
+    <PackageReference Include="MonoMod" Version="22.6.3.1" />
+		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.6.3.1" />
+		<PackageReference Include="NuGet.Protocol" Version="6.3.0" />
 		<PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">

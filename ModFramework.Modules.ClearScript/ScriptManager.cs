@@ -23,7 +23,6 @@ using System.Linq;
 using Microsoft.ClearScript;
 using Microsoft.ClearScript.JavaScript;
 using Microsoft.ClearScript.V8;
-
 namespace ModFramework.Modules.ClearScript
 {
     public delegate bool FileFoundHandler(string filepath);
@@ -55,6 +54,7 @@ namespace ModFramework.Modules.ClearScript
 
         public ScriptManager Manager { get; set; }
         public bool IsModule { get; set; }
+        public ModContext ModContext { get; set; }
 
         public JSScript(ScriptManager manager, bool isModule)
         {
@@ -188,19 +188,20 @@ namespace ModFramework.Modules.ClearScript
     {
         public string ScriptFolder { get; set; }
 
-        public static event FileFoundHandler? FileFound;
-
         private List<JSScript> _scripts { get; } = new List<JSScript>();
         private FileSystemWatcher? _watcher { get; set; }
 
         public ModFwModder? Modder { get; set; }
+        public ModContext ModContext { get; set; }
         public MarkdownDocumentor? MarkdownDocumentor { get; set; }
 
         public ScriptManager(
+            ModContext context,
             string scriptFolder,
             ModFwModder? modder
         )
         {
+            ModContext = context;
             ScriptFolder = scriptFolder;
             Modder = modder;
         }
@@ -241,7 +242,7 @@ namespace ModFramework.Modules.ClearScript
             var scripts = Directory.GetFiles(ScriptFolder, "*.js", SearchOption.TopDirectoryOnly);
             foreach (var file in scripts)
             {
-                if (FileFound?.Invoke(file) == false)
+                if (ModContext?.PluginLoader.CanAddFile(file) == false)
                     continue; // event was cancelled, they do not wish to use this file. skip to the next.
 
                 CreateScriptFromFile(file, false);
@@ -253,7 +254,7 @@ namespace ModFramework.Modules.ClearScript
                 if (Path.GetDirectoryName(modulePath)?.Equals("typings", StringComparison.CurrentCultureIgnoreCase) == true)
                     continue;
 
-                if (FileFound?.Invoke(modulePath) == false)
+                if (ModContext?.PluginLoader.CanAddFile(modulePath) == false)
                     continue; // event was cancelled, they do not wish to use this file. skip to the next.
 
                 var index = Path.Combine(modulePath, "index.js");

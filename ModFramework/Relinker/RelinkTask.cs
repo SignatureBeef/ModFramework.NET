@@ -29,17 +29,16 @@ namespace ModFramework.Relinker
     {
         private bool disposedValue;
 
-        public MonoModder? Modder { get; set; }
-        public IRelinkProvider? RelinkProvider { get; set; }
+        public ModFwModder Modder { get; set; }
         public virtual int Order { get; set; } = 100;
 
         public virtual void Registered() { }
+        public virtual void PreWrite() { }
 
-        //public RelinkTask(MonoModder modder, IRelinkProvider relinkProvider = null)
-        //{
-        //    Modder = modder;
-        //    RelinkProvider = relinkProvider ?? modder as IRelinkProvider;
-        //}
+        public RelinkTask(ModFwModder modder)
+        {
+            Modder = modder;
+        }
 
         public virtual void Relink(TypeDefinition type) { }
         public virtual void Relink(MethodDefinition method) { }

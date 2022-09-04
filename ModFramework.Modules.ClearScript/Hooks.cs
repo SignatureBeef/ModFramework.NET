@@ -19,42 +19,41 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace ModFramework.Modules.ClearScript
+namespace ModFramework.Modules.ClearScript;
+
+public static class Hooks
 {
-    public static class Hooks
+    public const string RootFolder = "clearscript";
+
+    public static ScriptManager? ScriptManager { get; set; }
+
+    [Modification(ModType.Runtime, "Loading ClearScript interface")]
+    public static void OnRunning(ModContext context)
     {
-        public const string RootFolder = "clearscript";
+        Launch(context);
+    }
 
-        public static ScriptManager? ScriptManager { get; set; }
+    [Modification(ModType.Read, "Loading ClearScript interface")]
+    public static void OnModding(ModFwModder modder)
+    {
+        Launch(modder.ModContext, modder);
+    }
 
-        [Modification(ModType.Runtime, "Loading ClearScript interface")]
-        public static void OnRunning()
-        {
-            Launch();
-        }
+    static void Launch(ModContext context, ModFwModder? modder = null)
+    {
+        Directory.CreateDirectory(RootFolder);
 
-        [Modification(ModType.Read, "Loading ClearScript interface")]
-        public static void OnModding(ModFwModder modder)
-        {
-            Launch(modder);
-        }
+        Console.WriteLine($"[JS] Loading ClearScript files from ./{RootFolder}");
 
-        static void Launch(ModFwModder? modder = null)
-        {
-            Directory.CreateDirectory(RootFolder);
+        ScriptManager = new ScriptManager(context, RootFolder, modder);
+        ScriptManager.Initialise();
+        ScriptManager.WatchForChanges();
+    }
 
-            Console.WriteLine($"[JS] Loading ClearScript files from ./{RootFolder}");
-
-            ScriptManager = new ScriptManager(RootFolder, modder);
-            ScriptManager.Initialise();
-            ScriptManager.WatchForChanges();
-        }
-
-        [Modification(ModType.Shutdown, "Shutting down the ClearScript interface")]
-        public static void OnShutdown()
-        {
-            ScriptManager?.Dispose();
-            ScriptManager = null;
-        }
+    [Modification(ModType.Shutdown, "Shutting down the ClearScript interface")]
+    public static void OnShutdown()
+    {
+        ScriptManager?.Dispose();
+        ScriptManager = null;
     }
 }

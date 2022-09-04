@@ -12,11 +12,7 @@ namespace ModFramework.Relinker
         private HashSet<TypeReference> NoChangeCache = new HashSet<TypeReference>();
         private Dictionary<TypeReference, TypeReference> ChangeCache = new Dictionary<TypeReference, TypeReference>();
 
-        public override void Registered()
-        {
-            base.Registered();
-            OnInit();
-        }
+        protected TypeRelinker(ModFwModder modder) : base(modder) { }
 
         protected override void Cleanup()
         {
@@ -25,7 +21,7 @@ namespace ModFramework.Relinker
             NoChangeCache.Clear();
         }
 
-        protected virtual void OnInit()
+        public override void PreWrite()
         {
             if (Modder is null) throw new ArgumentNullException(nameof(Modder));
             FixAttributes(Modder.Module.Assembly.CustomAttributes);
@@ -65,9 +61,14 @@ namespace ModFramework.Relinker
             //{
             //    changed |= CheckType(type.DeclaringType, nt => type.DeclaringType = nt);
             //}
+            if (type is RequiredModifierType rmt)
+            {
+                changed |= CheckType(rmt.ModifierType, ntype => rmt.ModifierType = ntype);
+            }
+
             if (type is TypeSpecification ts)
             {
-                CheckType(ts.ElementType);
+                changed |= CheckType(ts.ElementType);
             }
             else if (type is GenericParameter gp)
             {
@@ -75,7 +76,7 @@ namespace ModFramework.Relinker
 
                 foreach (var prm in gp.GenericParameters)
                 {
-                    CheckType(prm);
+                    changed |= CheckType(prm);
                 }
             }
             else if (type is GenericInstanceType genericInstanceType)
@@ -130,7 +131,17 @@ namespace ModFramework.Relinker
             if (instr.Operand is MethodReference mref)
             {
                 if (mref is GenericInstanceMethod gim)
+                {
                     CheckType(gim.ElementMethod.DeclaringType, nt => gim.ElementMethod.DeclaringType = nt);
+
+                    for (var x = 0; x < gim.GenericArguments.Count; x++)
+                    {
+                        CheckType(gim.GenericArguments[x], nt => gim.GenericArguments[x] = nt);
+
+                        if (gim.GenericArguments[x].DeclaringType is not null)
+                            CheckType(gim.GenericArguments[x].DeclaringType, nt => gim.GenericArguments[x].DeclaringType = nt);
+                    }
+                }
                 else
                     CheckType(mref.DeclaringType, nt => mref.DeclaringType = nt);
 
@@ -217,6 +228,8 @@ namespace ModFramework.Relinker
         {
             base.Relink(type);
 
+            FixAttributes(type.CustomAttributes);
+
             if (type.BaseType != null)
                 CheckType(type.BaseType, nt => type.BaseType = nt);
 
@@ -229,12 +242,15 @@ namespace ModFramework.Relinker
         public override void Relink(EventDefinition typeEvent)
         {
             base.Relink(typeEvent);
+
+            FixAttributes(typeEvent.CustomAttributes);
             CheckType(typeEvent.EventType, nt => typeEvent.EventType = nt);
         }
 
         public override void Relink(FieldDefinition field)
         {
             base.Relink(field);
+            
             CheckType(field.FieldType, nt => field.FieldType = nt);
             FixAttributes(field.CustomAttributes);
         }
@@ -293,6 +309,7 @@ namespace ModFramework.Relinker
         {
             base.Relink(property);
             CheckType(property.PropertyType, nt => property.PropertyType = nt);
+            FixAttributes(property.CustomAttributes);
         }
     }
 }

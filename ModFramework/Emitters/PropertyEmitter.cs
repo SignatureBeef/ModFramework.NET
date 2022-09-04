@@ -28,7 +28,7 @@ namespace ModFramework
     {
         const MethodAttributes DefaultMethodAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
 
-        public static PropertyDefinition RemapAsProperty(this FieldDefinition field, IRelinkProvider relinkProvider)
+        public static PropertyDefinition RemapAsProperty(this FieldDefinition field, ModFwModder modder)
         {
             var property = new PropertyDefinition(field.Name, PropertyAttributes.None, field.FieldType)
             {
@@ -43,7 +43,7 @@ namespace ModFramework
             field.DeclaringType.Properties.Add(property);
 
             // add a task to rewrite the field accessors to properties
-            relinkProvider.AddTask(new FieldToPropertyRelinker(field, property));
+            modder.AddTask<FieldToPropertyRelinker>(field, property);
 
             field.Name = $"<{field.Name}>k__BackingField";
             //field.Attributes = FieldAttributes.Private;
@@ -52,11 +52,11 @@ namespace ModFramework
             return property;
         }
 
-        public static void RemapFieldsToProperties(this TypeDefinition type, IRelinkProvider relinkProvider)
+        public static void RemapFieldsToProperties(this TypeDefinition type, ModFwModder modder)
         {
             foreach (var field in type.Fields.Where(f => !f.HasConstant && !f.IsPrivate))
             {
-                field.RemapAsProperty(relinkProvider);
+                field.RemapAsProperty(modder);
             }
         }
 

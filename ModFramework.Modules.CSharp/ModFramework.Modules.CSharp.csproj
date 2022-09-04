@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net6.0;netstandard2.0;netstandard2.1</TargetFrameworks>
-		<PackageVersion>1.0.46-alpha</PackageVersion>
-		<Version>1.0.46.0-alpha</Version>
+		<TargetFramework>net6.0</TargetFramework>
+		<PackageVersion>1.1.0-alpha</PackageVersion>
+		<Version>1.1.0.0-alpha</Version>
 		<PackageId>ModFramework.Modules.CSharp</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -16,18 +16,17 @@
 		<Description>A plugin for ModFramework that loads CSharp scripts</Description>
 		<PackageReleaseNotes>A plugin for ModFramework that loads CSharp scripts</PackageReleaseNotes>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
-		<LangVersion>9.0</LangVersion>
 		<Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.2.0" />
-		<PackageReference Include="MonoMod" Version="22.5.1.1" />
+		<PackageReference Include="MonoMod" Version="22.6.3.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 		<PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0" />
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\ModFramework\ModFramework.csproj" />
+	  <ProjectReference Include="..\ModFramework\ModFramework.csproj" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">
 		<RemoveDir Directories="$(OUTDIR)" />
