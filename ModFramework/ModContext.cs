@@ -37,7 +37,8 @@ public class ModPluginLoader
         if (!CanAddFile(path))
             return;
 
-        var asm = AssemblyLoader.LoadFromAssemblyPath(path);
+        var full = Path.GetFullPath(path);
+        var asm = AssemblyLoader.LoadFromAssemblyPath(full);
         AddAssembly(asm);
     }
 
