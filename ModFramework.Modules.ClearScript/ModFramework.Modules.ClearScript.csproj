@@ -24,7 +24,7 @@
     <None Remove="Typings\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.ClearScript" Version="7.3.1" />
+    <PackageReference Include="Microsoft.ClearScript" Version="7.3.2" />
     <PackageReference Include="MonoMod" Version="22.5.1.1" />
     <PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.3.1" />
     <PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.3.2" />
