@@ -21,6 +21,7 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -90,8 +91,14 @@ class CSScript : IDisposable
 
             _script = CSharpScript.Create(Content, Manager.ScriptOptions.WithFilePath(FilePath), globalsType: typeof(Globals));
 
-            //foreach (var reff in _script.GetCompilation().References)
-            //    Console.WriteLine($"{reff.Display} - {File.Exists(reff.Display)}");
+            var res = _script.Compile().ToArray();
+            var errors = res.Where(x => x.Severity == DiagnosticSeverity.Error);
+            if(errors.Any())
+            {
+                Console.WriteLine($"Compilation errors for script `{Path.GetFileName(FilePath)}`:");
+                foreach ( var error in errors)
+                    Console.WriteLine(error);
+            }
 
             Globals = new();
             var state = _script.RunAsync(Globals).Result;
@@ -133,18 +140,18 @@ public class ScriptManager : IDisposable
 
         MetaData = Loader.CreateMetaData();
 
-        //MetadataReference[] _ref =
-        //DependencyContext.Default.CompileLibraries
-        //    .First(cl => cl.Name == "Microsoft.NETCore.App")
-        //    .ResolveReferencePaths()
-        //    .Select(asm => MetadataReference.CreateFromFile(asm))
-        //    .ToArray();
+        // remove duplicate types for System.Object.
+        // System.Private.CoreLib is still used by roslyn.
+        var refs = Loader.GetAllSystemReferences().ToArray();
+        var blacklist = new List<string> { "mscorlib", "System.Private.CoreLib", "netstandard", "WindowsBase", "System.Runtime" };
+        var whitelist = refs.Where(x => x.Display != null && !blacklist.Any(bl => x.Display.Contains(bl))).ToArray();
+
         ScriptOptions = ScriptOptions.Default
-            .WithReferences((MetaData.MetadataReferences ?? Enumerable.Empty<MetadataReference>()).Union(
-                //Loader.GetAllSystemReferences().Select(f => MetadataReference.CreateFromFile(f))
-                //_ref
-                Loader.GetAllSystemReferences()
-             ))
+            .WithReferences(whitelist
+                .Union(
+                    MetaData.MetadataReferences ?? Enumerable.Empty<MetadataReference>()
+                )
+            )
             .WithEmitDebugInformation(true)
             .WithFileEncoding(Encoding.UTF8)
         ;

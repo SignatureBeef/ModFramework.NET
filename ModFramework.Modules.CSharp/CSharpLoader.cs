@@ -201,7 +201,7 @@ public class CSharpLoader
         var fw = FrameworkResolver.FindFramework();
 
         var files = Directory.GetFiles(fw, "*.dll");
-        return systemRefs = files.Select(f => MetadataReference.CreateFromFile(f));
+        return systemRefs = files.Select(f => MetadataReference.CreateFromFile(Path.GetFullPath(f)));
     }
 
     public string ResolveFile(string path)
