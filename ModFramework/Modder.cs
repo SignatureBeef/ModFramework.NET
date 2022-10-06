@@ -196,6 +196,12 @@ public class ModFwModder : MonoMod.MonoModder, IRelinkProvider
     public override void PatchField(TypeDefinition targetType, FieldDefinition field)
     {
         base.PatchField(targetType, field);
+
+        // .Offset not copied fix. posted in discord, no response yet, no response to last PR either. so another patch here again.
+        var fld = targetType.Field(field.Name);
+        if (fld is not null && fld.Offset != field.Offset)
+            fld.Offset = field.Offset;
+
         RunTasks(t => t.Relink(field));
     }
 
