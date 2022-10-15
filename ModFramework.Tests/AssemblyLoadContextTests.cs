@@ -38,7 +38,7 @@ public class AssemblyLoadContextTests
     {
         var dest = Path.Combine(ModificationsDirectory, file);
         if (File.Exists(dest)) File.Delete(dest);
-        File.Copy(file, dest); ;
+        File.Copy(file, dest);
     }
 }
 
@@ -72,7 +72,7 @@ public class TestDependencyResolver : AssemblyLoadContext
         _resolver = new(path);
     }
 
-    protected override Assembly Load(AssemblyName name)
+    protected override Assembly? Load(AssemblyName name)
     {
         if (name.Name == typeof(ModificationAttribute).Assembly.GetName().Name)
             return typeof(ModificationAttribute).Assembly;
@@ -84,7 +84,7 @@ public class TestDependencyResolver : AssemblyLoadContext
             return typeof(ModFramework.Modules.Lua.Hooks).Assembly;
 
         System.Diagnostics.Debug.WriteLine($"Looking for dep: {name}");
-        string assemblyPath = _resolver.ResolveAssemblyToPath(name);
+        var assemblyPath = _resolver.ResolveAssemblyToPath(name);
         if (assemblyPath != null)
         {
             return LoadFromAssemblyPath(assemblyPath);
