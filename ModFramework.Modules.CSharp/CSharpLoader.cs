@@ -671,7 +671,7 @@ public class CSharpLoader
             //if (File.Exists(outAsmPath))
             //    continue;
 
-            Console.WriteLine($"[{ConsolePrefix}] Loading script: {file}");
+            Console.WriteLine($"[{ConsolePrefix}] Loading script: {new Uri(AppContext.BaseDirectory).MakeRelativeUri(new(file))}");
 
             LoadScripts(meta, new[] { file }, outputKind, assemblyName, type);
         }
