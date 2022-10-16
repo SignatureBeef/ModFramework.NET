@@ -2,10 +2,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <PackageVersion>1.1.4-alpha</PackageVersion>
-    <Version>1.1.4.0-alpha</Version>
+    <PackageVersion>1.1.5</PackageVersion>
+    <Version>1.1.5</Version>
     <Authors>DeathCradle</Authors>
-    <Copyright>DeathCradle</Copyright>
+    <Copyright>Copyright 2016-2022</Copyright>
     <PackageId>ModFramework.Modules.ClearScript</PackageId>
     <PackageLicenseUrl>https://github.com/DeathCradle/Open-Terraria-API/blob/upcoming/COPYING.txt</PackageLicenseUrl>
     <Owners>DeathCradle</Owners>
