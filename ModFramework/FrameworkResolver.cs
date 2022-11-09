@@ -112,6 +112,7 @@ public class DefaultFrameworkResolver : IFrameworkResolver
             .OrderByDescending(x => x.Version);
 
         NuGetVersion? version;
+        packageVersion ??= Environment.Version.ToString();
         if (packageVersion is null)
             version = versions.FirstOrDefault();
         else version = versions.FindBestMatch(VersionRange.Parse(packageVersion), version => version);
