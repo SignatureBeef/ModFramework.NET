@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <PackageVersion>1.1.6</PackageVersion>
-    <Version>1.1.6</Version>
+    <PackageVersion>1.1.7</PackageVersion>
+    <Version>1.1.7</Version>
     <Authors>DeathCradle</Authors>
     <Copyright>Copyright 2016-2022</Copyright>
     <PackageId>ModFramework.Modules.ClearScript</PackageId>
