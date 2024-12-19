@@ -112,7 +112,7 @@ public class CoreLibRelinker : TypeRelinker
         {
             ConstructorArguments =
                 {
-                    new (Modder.Module.TypeSystem.String, ".NETCoreApp,Version=v6.0")
+                    new (Modder.Module.TypeSystem.String, $".NETCoreApp,Version=v{Environment.Version.Major}.{Environment.Version.Minor}") // runtimeinformation could be utilised, but we don't expect to run on legacy .net so should be consistent values
                 },
             Properties =
                 {
