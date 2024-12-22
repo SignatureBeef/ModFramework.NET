@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <PackageVersion>1.1.7</PackageVersion>
     <Version>1.1.7</Version>
     <Authors>DeathCradle</Authors>
@@ -24,10 +24,10 @@
     <None Remove="Typings\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.ClearScript" Version="7.3.4" />
-    <PackageReference Include="MonoMod" Version="22.5.1.1" />
-    <PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.3.4" />
-    <PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.3.4" />
+    <PackageReference Include="Microsoft.ClearScript" Version="7.4.5" />
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+    <PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.4.5" />
+    <PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.4.5" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Typings\" />

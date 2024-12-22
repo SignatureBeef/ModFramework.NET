@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
 		<PackageVersion>1.1.7</PackageVersion>
 		<Version>1.1.7</Version>
 		<PackageId>ModFramework</PackageId>
@@ -20,8 +20,8 @@
 	</PropertyGroup>
 	<ItemGroup>
     <!--<PackageReference Include="MonoMod" Version="22.8.31.1-prerelease" />-->
-    <PackageReference Include="MonoMod" Version="22.5.1.1" />
-		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.5.1.1" />
+    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.7.31.1" />
 		<PackageReference Include="NuGet.Protocol" Version="6.12.1" />
 		<PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
 	</ItemGroup>

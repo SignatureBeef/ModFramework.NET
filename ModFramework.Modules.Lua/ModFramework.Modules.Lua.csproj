@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <PackageVersion>1.1.7</PackageVersion>
     <Version>1.1.7</Version>
     <PackageId>ModFramework.Modules.Lua</PackageId>
@@ -22,7 +22,7 @@
   <ItemGroup>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="NLua" Version="1.6.0" />
+    <PackageReference Include="NLua" Version="1.7.3" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ModFramework\ModFramework.csproj" />
