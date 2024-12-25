@@ -74,6 +74,7 @@ public static class EventEmitter
         VariableDefinition v0 = new(eventField.FieldType);
         VariableDefinition v1 = new(eventField.FieldType);
         VariableDefinition v2 = new(eventField.FieldType);
+        addMethod.Body.InitLocals = true;
         addMethod.Body.Variables.Add(v0);
         addMethod.Body.Variables.Add(v1);
         addMethod.Body.Variables.Add(v2);
@@ -110,6 +111,7 @@ public static class EventEmitter
         v0 = new(eventField.FieldType);
         v1 = new(eventField.FieldType);
         v2 = new(eventField.FieldType);
+        removeMethod.Body.InitLocals = true;
         removeMethod.Body.Variables.Add(v0);
         removeMethod.Body.Variables.Add(v1);
         removeMethod.Body.Variables.Add(v2);

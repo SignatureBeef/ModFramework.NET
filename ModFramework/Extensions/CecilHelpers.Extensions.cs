@@ -96,7 +96,10 @@ public static class CecilHelpersExtensions
 
             if (followRedirect)
             {
-                var redirected = methodReference.DeclaringType.Resolve().Methods.SingleOrDefault(m => m.Name == "orig_" + methodReference.Name);
+                var methods = methodReference.DeclaringType.Resolve().Methods;
+                var redirected =
+                    methods.SingleOrDefault(m => m.Name == "orig_" + methodReference.Name) ??
+                    methods.SingleOrDefault(m => m.Name == "hooked_" + methodReference.Name);
                 if (redirected != null)
                 {
                     return (TReturn)(object)redirected;
