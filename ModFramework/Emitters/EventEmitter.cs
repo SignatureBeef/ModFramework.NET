@@ -16,9 +16,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+using ModFramework.Relinker;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using System;
+using MonoMod;
 using System.Linq;
 
 namespace ModFramework;
@@ -26,6 +27,9 @@ namespace ModFramework;
 [MonoMod.MonoModIgnore]
 public static class EventEmitter
 {
+    public static TypeReference GetEventHandlerReference(MonoModder modder)
+        => modder.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.EventHandler`1"));
+
     /// <summary>
     /// Creates a new event based upon the source definition
     /// </summary>
@@ -34,14 +38,16 @@ public static class EventEmitter
     /// <param name="eventArgsType">The event args to use</param>
     /// <param name="name">Optional desired name for the event</param>
     /// <returns>A tuple of the field and event definitions</returns>
-    public static (FieldDefinition fieldDefinition, EventDefinition eventDefinition) CreateEvent(this MethodDefinition sourceDefinition, TypeDefinition containingType, TypeDefinition eventArgsType, string? name = null)
+    public static (FieldDefinition fieldDefinition, EventDefinition eventDefinition) CreateEvent(this MethodDefinition sourceDefinition, TypeDefinition containingType, TypeDefinition eventArgsType, MonoModder modder, string? name = null)
     {
+        var eventHandlerType = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.EventHandler`1"));
+
         // Define the event backing field
         var fieldName = name ?? $"{sourceDefinition.Name}Event";
         FieldDefinition eventField = new(
             fieldName,
             FieldAttributes.Private | FieldAttributes.Static,
-            new GenericInstanceType(sourceDefinition.Module.ImportReference(typeof(EventHandler<>)))
+            new GenericInstanceType(eventHandlerType)
             {
                 GenericArguments = { eventArgsType }
             }
@@ -65,9 +71,11 @@ public static class EventEmitter
         ParameterDefinition parameter = new("value", ParameterAttributes.None, eventField.FieldType);
         addMethod.Parameters.Add(parameter);
         var ilAdd = addMethod.Body.GetILProcessor();
-        GenericInstanceMethod methodInterlockedCompareExchange = new(containingType.Module.ImportReference(typeof(System.Threading.Interlocked)
-            .GetMethods()
-            .Single(m => m.Name == "CompareExchange" && m.IsGenericMethodDefinition)));
+
+        var compareExchange = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Threading.Interlocked")
+            .Methods.Single(m => m.Name == "CompareExchange" && m.HasGenericParameters && m.IsStatic));
+
+        GenericInstanceMethod methodInterlockedCompareExchange = new(compareExchange);
         methodInterlockedCompareExchange.GenericArguments.Add(eventField.FieldType);
 
 
@@ -86,7 +94,10 @@ public static class EventEmitter
         ilAdd.Emit(OpCodes.Stloc_1);           // Store into local v1
         ilAdd.Emit(OpCodes.Ldloc_1);           // Load local v1
         ilAdd.Emit(OpCodes.Ldarg_0);           // Load the parameter value
-        ilAdd.Emit(OpCodes.Call, containingType.Module.ImportReference(typeof(Delegate).GetMethods().Single(x => x.Name == "Combine" && x.GetParameters().Length == 2)));
+
+        var combine = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Delegate")
+            .Methods.Single(m => m.Name == "Combine" && m.IsStatic && m.Parameters.Count == 2));
+        ilAdd.Emit(OpCodes.Call, combine);
         ilAdd.Emit(OpCodes.Castclass, eventField.FieldType);
         ilAdd.Emit(OpCodes.Stloc_2);           // Store into local v2
         ilAdd.Emit(OpCodes.Ldsflda, eventField);
@@ -124,7 +135,9 @@ public static class EventEmitter
         ilRemove.Emit(OpCodes.Stloc_1);           // Store into local v1
         ilRemove.Emit(OpCodes.Ldloc_1);           // Load local v1
         ilRemove.Emit(OpCodes.Ldarg_0);           // Load the parameter value
-        ilRemove.Emit(OpCodes.Call, containingType.Module.ImportReference(typeof(Delegate).GetMethod("Remove")));
+        var remove = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Delegate")
+            .Methods.Single(m => m.Name == "Remove" && m.IsStatic));
+        ilRemove.Emit(OpCodes.Call, remove);
         ilRemove.Emit(OpCodes.Castclass, eventField.FieldType);
         ilRemove.Emit(OpCodes.Stloc_2);           // Store into local v2
         ilRemove.Emit(OpCodes.Ldsflda, eventField);
@@ -139,9 +152,11 @@ public static class EventEmitter
         containingType.Methods.Add(removeMethod);
 
         // add compiler generated attribute
-        addMethod.CustomAttributes.Add(new(containingType.Module.ImportReference(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes))));
-        removeMethod.CustomAttributes.Add(new(containingType.Module.ImportReference(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes))));
-        eventField.CustomAttributes.Add(new(containingType.Module.ImportReference(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes))));
+        var ctor = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Runtime.CompilerServices.CompilerGeneratedAttribute")
+            .Methods.Single(m => m.Name == ".ctor" && m.IsConstructor && m.Parameters.Count == 0));
+        addMethod.CustomAttributes.Add(new(ctor));
+        removeMethod.CustomAttributes.Add(new(ctor));
+        eventField.CustomAttributes.Add(new(ctor));
 
         // Link the add/remove methods to the event
         eventDefinition.AddMethod = addMethod;

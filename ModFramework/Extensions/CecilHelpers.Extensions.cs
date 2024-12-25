@@ -32,7 +32,7 @@ public static class CecilHelpersExtensions
     public static ILCursor GetILCursor(this MonoMod.MonoModder modder, Expression<Action> reference, bool followRedirect = true)
         => new ILCursor(new ILContext(modder.Module.GetDefinition<MethodDefinition>(reference, followRedirect)) { ReferenceBag = RuntimeILReferenceBag.Instance });
 
-    public static ILCursor GetILCursor(this MonoMod.MonoModder modder, MethodDefinition method, bool followRedirect = true)
+    public static ILCursor GetILCursor(this MonoMod.MonoModder modder, MethodDefinition method)
         => new ILCursor(new ILContext(method) { ReferenceBag = RuntimeILReferenceBag.Instance });
 
     public static MethodDefinition GetMethodDefinition(this MonoMod.MonoModder modder, Expression<Action> reference, bool followRedirect = true)
@@ -97,9 +97,17 @@ public static class CecilHelpersExtensions
             if (followRedirect)
             {
                 var methods = methodReference.DeclaringType.Resolve().Methods;
-                var redirected =
-                    methods.SingleOrDefault(m => m.Name == "orig_" + methodReference.Name) ??
-                    methods.SingleOrDefault(m => m.Name == "hooked_" + methodReference.Name);
+                var monomod = methods.SingleOrDefault(m => m.Name == "orig_" + methodReference.Name);
+                var modfw = methods.SingleOrDefault(m => m.Name == HookEmitter.HookMethodNamePrefix + methodReference.Name);
+
+                var redirected = monomod ?? modfw;
+                if (monomod != null && modfw != null)
+                {
+                    // if one references the other, use the one that doesnt as the redirected target
+                    var monoModReferencesModFw = monomod.Body.Instructions.Any(x => x.Operand is MethodReference mr && mr.FullName == modfw.FullName);
+                    if (monoModReferencesModFw)
+                        redirected = modfw;
+                }
                 if (redirected != null)
                 {
                     return (TReturn)(object)redirected;

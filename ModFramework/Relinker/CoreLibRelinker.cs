@@ -17,8 +17,10 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 using Mono.Cecil;
+using MonoMod;
 using MonoMod.Utils;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using static ModFramework.ModContext;
 
@@ -140,14 +142,14 @@ public class CoreLibRelinker : TypeRelinker
         base.PreWrite();
     }
 
-    AssemblyNameReference? ResolveDependency(TypeReference type)
+    public static (ModuleDefinition module, IReadOnlyCollection<TypeDefinition> types)? ResolveFrameworkType(MonoModder modder, string typeFullName)
     {
-        if (Modder is null) throw new ArgumentNullException(nameof(Modder));
-        var depds = Modder.DependencyCache.Values
+        if (modder is null) throw new ArgumentNullException(nameof(Modder));
+        var depds = modder.DependencyCache.Values
             .Select(m => new
             {
                 Module = m,
-                Types = m.Types.Where(x => x.FullName == type.FullName
+                Types = m.Types.Where(x => x.FullName == typeFullName
                     && m.Assembly.Name.Name != "mscorlib"
                     && m.Assembly.Name.Name != "System.Private.CoreLib"
                     && x.IsPublic
@@ -156,15 +158,31 @@ public class CoreLibRelinker : TypeRelinker
             .Where(x => x.Types.Any())
             // pick the assembly with the highest version.
             // TODO: consider if this will ever need to target other fw's
-            .OrderByDescending(x => x.Module.Assembly.Name.Version); ;
+            .OrderByDescending(x => x.Module.Assembly.Name.Version);
 
-        var first = depds.FirstOrDefault();
-        if (first is not null)
+        var type = depds.FirstOrDefault();
+        if (type is not null)
         {
-            return first.Module.Assembly.AsNameReference();
+            return (type.Module, type.Types.ToArray());
         }
         return null;
     }
+
+    public static TypeDefinition ResolveFirstFrameworkType(MonoModder modder, string typeFullName)
+    {
+        var res = ResolveFrameworkType(modder, typeFullName);
+        return res?.types?.FirstOrDefault() ?? throw new InvalidOperationException($"Could not resolve type {typeFullName}");
+    }
+
+    public static AssemblyNameReference? ResolveFrameworkAssembly(MonoModder modder, string typeFullName)
+    {
+        if (modder is null) throw new ArgumentNullException(nameof(Modder));
+        var data = ResolveFrameworkType(modder, typeFullName);
+        return data?.module?.Assembly?.AsNameReference();
+    }
+
+    public static AssemblyNameReference? ResolveDependency(MonoModder modder, TypeReference type)
+        => ResolveFrameworkAssembly(modder, type.FullName);
 
     AssemblyNameReference? ResolveAssembly(TypeReference type)
     {
@@ -173,7 +191,7 @@ public class CoreLibRelinker : TypeRelinker
         {
             if (type.Scope is AssemblyNameReference anr)
             {
-                var dependencyMatch = ResolveDependency(type);
+                var dependencyMatch = ResolveDependency(Modder, type);
                 if (dependencyMatch is not null)
                     return dependencyMatch;
 
