@@ -85,7 +85,8 @@ public static class HookEmitter
         FieldDefinition resultField = new(ContinueExecutionName, FieldAttributes.Public, resultType);
 
         // if the method has a return type, add a field for it
-        var hasReturnValue = hookDefinition.ReturnType != hookDefinition.Module.TypeSystem.Void;
+        // n.b. this may happen before/after relinking so two Void types may not be equal thus FullName is used
+        var hasReturnValue = hookDefinition.ReturnType.FullName != hookDefinition.Module.TypeSystem.Void.FullName;
         if (hasReturnValue)
         {
             FieldDefinition returnField = new(HookReturnValueName, FieldAttributes.Public, hookDefinition.ReturnType);
