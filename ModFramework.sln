@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModFramework.Modules.Lua", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{77411345-4B7F-4A03-B0EB-F2FAB41892B3}"
 	ProjectSection(SolutionItems) = preProject
+		.github\workflows\ci-build.yml = .github\workflows\ci-build.yml
+		.github\workflows\ci-deploy.yml = .github\workflows\ci-deploy.yml
 		LICENSE.txt = LICENSE.txt
 		README.md = README.md
 	EndProjectSection
