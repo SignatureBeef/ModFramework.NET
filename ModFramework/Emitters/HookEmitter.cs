@@ -173,9 +173,8 @@ public static class HookEmitter
         };
     }
 
-    public static TypeDefinition CreateHookDelegate(MonoModder modder)
+    public static TypeDefinition GetOrCreateHookDelegate(MonoModder modder)
     {
-        var test = modder.Module.ImportReference(typeof(HookDelegate<,>));
         var hookDelegate = modder.Module.Types.SingleOrDefault(x => x.Name == "HookDelegate");
         if (hookDelegate is not null)
             return hookDelegate;
@@ -235,7 +234,13 @@ public static class HookEmitter
         return hookDelegate;
     }
 
-    static MethodDefinition CreateInvokeMethod(TypeDefinition hookType, FieldDefinition eventField, TypeDefinition hookEventArgsType, MonoModder modder, string? name = null)
+    static MethodDefinition CreateInvokeMethod(
+        TypeDefinition hookType,
+        FieldDefinition eventField,
+        TypeDefinition hookEventArgsType,
+        MonoModder modder,
+        TypeReference? instanceType,
+        string? name = null)
     {
         var methodName = name ?? $"Invoke{eventField.Name.TrimStart('_')}";
 
@@ -250,7 +255,7 @@ public static class HookEmitter
         var senderFieldName = "instanceAsSender";
         while (hookType.Fields.Any(x => x.Name == senderFieldName))
             senderFieldName = "_" + senderFieldName;
-        ParameterDefinition senderParam = new(senderFieldName, ParameterAttributes.None, hookType.Module.TypeSystem.Object);
+        ParameterDefinition senderParam = new(senderFieldName, ParameterAttributes.None, instanceType ?? hookType.Module.TypeSystem.Object);
         invokeMethod.Parameters.Add(senderParam);
 
         //var returnValueField = hookEventArgsType.Fields.SingleOrDefault(x => x.Name == HookReturnValueName);
@@ -271,11 +276,15 @@ public static class HookEmitter
 
         // Create a GenericInstanceType for EventHandler<HookEventArgsType>
         //var eventHandlerGenericType = EventEmitter.GetEventHandlerReference(modder);
-        var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
+        //var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
+        var eventHandlerType = instanceType is not null ? GetOrCreateHookDelegate(modder) : modder.ResolveTypeReference(typeof(EventHandler<>));
         GenericInstanceType genericEventHandlerType = new(eventHandlerType)
         {
             GenericArguments = { hookEventArgsType }
         };
+
+        if (instanceType is not null)
+            genericEventHandlerType.GenericArguments.Insert(0, instanceType);
 
         // Import the "Invoke" method of EventHandler<HookEventArgsType>
         var eventHandlerInvokeMethod = eventHandlerType.Resolve().Methods.First(m => m.Name == "Invoke");
@@ -289,7 +298,10 @@ public static class HookEmitter
         };
 
         // Add parameters to the invokeMethodReference
-        invokeMethodReference.Parameters.Add(new(hookType.Module.TypeSystem.Object)); // sender
+        //invokeMethodReference.Parameters.Add(new(instanceType ?? hookType.Module.TypeSystem.Object)); // sender
+        invokeMethodReference.Parameters.Add(new(instanceType is not null ?
+            eventHandlerInvokeMethod.Parameters[0].ParameterType :
+            hookType.Module.TypeSystem.Object)); // sender
         invokeMethodReference.Parameters.Add(new(eventHandlerInvokeMethod.Parameters[1].ParameterType)); // args  - see EventHandler<>.Invoke, il is !0
 
         // Generate IL for the Invoke method
@@ -451,14 +463,14 @@ public static class HookEmitter
         // call an event
         // check whether to continue or not, using a simple bool flag
 
-        CreateHookDelegate(modder);
+        GetOrCreateHookDelegate(modder);
 
         var uniqueName = GetUniqueName(definition);
         var hookType = GetOrCreateHookType(definition.DeclaringType);
 
         var hookEventArgs = CreateHookEventArgs(hookType, definition, name: $"{uniqueName}EventArgs", modder: modder);
         var (hookField, _) = definition.CreateEvent(hookType, hookEventArgs, modder, name: uniqueName);
-        var newMethod = CreateInvokeMethod(hookType, hookField, hookEventArgs, modder, name: $"Invoke{uniqueName}");
+        var newMethod = CreateInvokeMethod(hookType, hookField, hookEventArgs, modder, definition.IsStatic ? null : definition.DeclaringType, name: $"Invoke{uniqueName}");
 
         var replacement = CreateReplacement(definition, newMethod, name: $"{HookMethodNamePrefix}{definition.Name}");
 

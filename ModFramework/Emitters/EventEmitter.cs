@@ -37,17 +37,21 @@ public static class EventEmitter
     /// <returns>A tuple of the field and event definitions</returns>
     public static (FieldDefinition fieldDefinition, EventDefinition eventDefinition) CreateEvent(this MethodDefinition sourceDefinition, TypeDefinition containingType, TypeDefinition eventArgsType, MonoModder modder, string? name = null)
     {
-        var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
+        //var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
+        var eventHandlerType = !sourceDefinition.IsStatic ? HookEmitter.GetOrCreateHookDelegate(modder) : modder.ResolveTypeReference(typeof(EventHandler<>));
+        var eventHandlerTypeGeneric = new GenericInstanceType(eventHandlerType)
+        {
+            GenericArguments = { eventArgsType }
+        };
+        if (!sourceDefinition.IsStatic)
+            eventHandlerTypeGeneric.GenericArguments.Insert(0, sourceDefinition.DeclaringType);
 
         // Define the event backing field
         var fieldName = name ?? $"{sourceDefinition.Name}Event";
         FieldDefinition eventField = new(
             fieldName,
             FieldAttributes.Private | FieldAttributes.Static,
-            new GenericInstanceType(eventHandlerType)
-            {
-                GenericArguments = { eventArgsType }
-            }
+            eventHandlerTypeGeneric
         );
         containingType.Fields.Add(eventField);
 
