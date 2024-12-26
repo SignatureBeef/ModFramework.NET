@@ -1,26 +1,25 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-		<PackageVersion>1.1.7</PackageVersion>
-		<Version>1.1.7</Version>
+		<TargetFramework>net9.0</TargetFramework>
+		<PackageVersion>1.1.8-alpha</PackageVersion>
+		<Version>1.1.8</Version>
 		<PackageId>ModFramework</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
-		<Copyright>Copyright 2016-2022</Copyright>
+		<Copyright>Copyright 2016-2024</Copyright>
 		<PackageLicenseUrl>https://github.com/SignatureBeef/ModFramework.NET/blob/default/LICENSE.txt</PackageLicenseUrl>
 		<Owners>DeathCradle</Owners>
 		<PackageProjectUrl>https://github.com/SignatureBeef/ModFramework.NET</PackageProjectUrl>
 		<Summary>Initial alpha version</Summary>
 		<Title>ModFramework</Title>
 		<Description>A tool for rewriting .net binaries. Can allow rewriting of Types to Interfaces, Arrays to Extensible Collections, or even Fields to Properties.</Description>
-		<PackageReleaseNotes>Fixed target framework resolution when using a higher SDK.</PackageReleaseNotes>
+		<PackageReleaseNotes>Upgrade to .NET9, package updates and static hook generation (alpha test)</PackageReleaseNotes>
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 	<ItemGroup>
-    <!--<PackageReference Include="MonoMod" Version="22.8.31.1-prerelease" />-->
-    <PackageReference Include="MonoMod" Version="22.7.31.1" />
+		<PackageReference Include="MonoMod" Version="22.7.31.1" />
 		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.7.31.1" />
 		<PackageReference Include="NuGet.Protocol" Version="6.12.1" />
 		<PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
