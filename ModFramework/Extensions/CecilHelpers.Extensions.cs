@@ -16,8 +16,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+using ModFramework.Relinker;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using MonoMod;
 using MonoMod.Cil;
 using System;
 using System.Collections.Generic;
@@ -568,4 +570,79 @@ public static class CecilHelpersExtensions
     }
 
     public static void SetAnyCPU(this ModFwModder modder) => modder.Module.SetAnyCPU();
+
+    public static (ModuleDefinition module, IReadOnlyCollection<TypeDefinition> types)? ResolveFrameworkType(this MonoModder modder, string typeFullName)
+    {
+        if (modder is null) throw new ArgumentNullException(nameof(modder));
+        var depds = modder.DependencyCache.Values
+            .Select(m => new
+            {
+                Module = m,
+                Types = m.Types.Where(x => x.FullName == typeFullName
+                    && m.Assembly.Name.Name != "mscorlib"
+                    && m.Assembly.Name.Name != "System.Private.CoreLib"
+                    && x.IsPublic
+                )
+            })
+            .Where(x => x.Types.Any())
+            // pick the assembly with the highest version.
+            // TODO: consider if this will ever need to target other fw's
+            .OrderByDescending(x => x.Module.Assembly.Name.Version);
+
+        var type = depds.FirstOrDefault();
+        if (type is not null)
+        {
+            return (type.Module, type.Types.ToArray());
+        }
+        return null;
+    }
+
+    public static TypeDefinition? TryResolveFirstFrameworkType(this MonoModder modder, string typeFullName)
+    {
+        var res = modder.ResolveFrameworkType(typeFullName);
+        return res?.types?.FirstOrDefault();
+    }
+
+    public static TypeDefinition? TryResolveFirstFrameworkType(this MonoModder modder, Type type)
+        => modder.TryResolveFirstFrameworkType(type.FullName ?? throw new ArgumentNullException(nameof(type.FullName)));
+
+    public static TypeDefinition? TryResolveFirstFrameworkType<TType>(this MonoModder modder)
+        => modder.TryResolveFirstFrameworkType(typeof(TType));
+
+    public static TypeDefinition ResolveFirstFrameworkType(this MonoModder modder, string typeFullName)
+    {
+        return TryResolveFirstFrameworkType(modder, typeFullName) ?? throw new InvalidOperationException($"Could not resolve type {typeFullName}");
+    }
+
+    public static TypeDefinition ResolveFirstFrameworkType(this MonoModder modder, Type type)
+        => modder.ResolveFirstFrameworkType(type.FullName ?? throw new ArgumentNullException(nameof(type.FullName)));
+
+    public static TypeDefinition ResolveFirstFrameworkType<TType>(this MonoModder modder)
+        => modder.ResolveFirstFrameworkType(typeof(TType));
+
+    public static AssemblyNameReference? ResolveFrameworkAssembly(this MonoModder modder, string typeFullName)
+    {
+        if (modder is null) throw new ArgumentNullException(nameof(modder));
+        var data = modder.ResolveFrameworkType(typeFullName);
+        return data?.module?.Assembly?.AsNameReference();
+    }
+
+    public static AssemblyNameReference? ResolveDependency(this MonoModder modder, TypeReference type)
+        => ResolveFrameworkAssembly(modder, type.FullName);
+
+    public static TypeReference ResolveTypeReference(this MonoModder modder, Type type)
+    {
+        // try the method the clr relinker uses first
+        var clr = modder.TryResolveFirstFrameworkType(type.FullName ?? throw new ArgumentNullException(nameof(type.FullName)));
+        if (clr is not null)
+            return modder.Module.ImportReference(clr);
+
+        // if we're here, the clr relinker failed, and typically this is because monomod hasn't executed and populated the dependencies
+        // this will often yield references to System.Private.CoreLib, which is not what we want - but typically is cleaned up by
+        // the clr relinker after this stage.
+        return modder.Module.ImportReference(type);
+    }
+
+    public static TypeReference ResolveTypeReference<TType>(this MonoModder modder)
+        => modder.ResolveTypeReference(typeof(TType));
 }

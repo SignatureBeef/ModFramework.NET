@@ -142,48 +142,6 @@ public class CoreLibRelinker : TypeRelinker
         base.PreWrite();
     }
 
-    public static (ModuleDefinition module, IReadOnlyCollection<TypeDefinition> types)? ResolveFrameworkType(MonoModder modder, string typeFullName)
-    {
-        if (modder is null) throw new ArgumentNullException(nameof(Modder));
-        var depds = modder.DependencyCache.Values
-            .Select(m => new
-            {
-                Module = m,
-                Types = m.Types.Where(x => x.FullName == typeFullName
-                    && m.Assembly.Name.Name != "mscorlib"
-                    && m.Assembly.Name.Name != "System.Private.CoreLib"
-                    && x.IsPublic
-                )
-            })
-            .Where(x => x.Types.Any())
-            // pick the assembly with the highest version.
-            // TODO: consider if this will ever need to target other fw's
-            .OrderByDescending(x => x.Module.Assembly.Name.Version);
-
-        var type = depds.FirstOrDefault();
-        if (type is not null)
-        {
-            return (type.Module, type.Types.ToArray());
-        }
-        return null;
-    }
-
-    public static TypeDefinition ResolveFirstFrameworkType(MonoModder modder, string typeFullName)
-    {
-        var res = ResolveFrameworkType(modder, typeFullName);
-        return res?.types?.FirstOrDefault() ?? throw new InvalidOperationException($"Could not resolve type {typeFullName}");
-    }
-
-    public static AssemblyNameReference? ResolveFrameworkAssembly(MonoModder modder, string typeFullName)
-    {
-        if (modder is null) throw new ArgumentNullException(nameof(Modder));
-        var data = ResolveFrameworkType(modder, typeFullName);
-        return data?.module?.Assembly?.AsNameReference();
-    }
-
-    public static AssemblyNameReference? ResolveDependency(MonoModder modder, TypeReference type)
-        => ResolveFrameworkAssembly(modder, type.FullName);
-
     AssemblyNameReference? ResolveAssembly(TypeReference type)
     {
         var res = Resolve?.Invoke(type);
@@ -191,7 +149,7 @@ public class CoreLibRelinker : TypeRelinker
         {
             if (type.Scope is AssemblyNameReference anr)
             {
-                var dependencyMatch = ResolveDependency(Modder, type);
+                var dependencyMatch = Modder.ResolveDependency(type);
                 if (dependencyMatch is not null)
                     return dependencyMatch;
 

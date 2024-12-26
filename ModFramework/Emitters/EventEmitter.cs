@@ -16,10 +16,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-using ModFramework.Relinker;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod;
+using System;
 using System.Linq;
 
 namespace ModFramework;
@@ -27,9 +27,6 @@ namespace ModFramework;
 [MonoMod.MonoModIgnore]
 public static class EventEmitter
 {
-    public static TypeReference GetEventHandlerReference(MonoModder modder)
-        => modder.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.EventHandler`1"));
-
     /// <summary>
     /// Creates a new event based upon the source definition
     /// </summary>
@@ -40,7 +37,7 @@ public static class EventEmitter
     /// <returns>A tuple of the field and event definitions</returns>
     public static (FieldDefinition fieldDefinition, EventDefinition eventDefinition) CreateEvent(this MethodDefinition sourceDefinition, TypeDefinition containingType, TypeDefinition eventArgsType, MonoModder modder, string? name = null)
     {
-        var eventHandlerType = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.EventHandler`1"));
+        var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
 
         // Define the event backing field
         var fieldName = name ?? $"{sourceDefinition.Name}Event";
@@ -72,7 +69,7 @@ public static class EventEmitter
         addMethod.Parameters.Add(parameter);
         var ilAdd = addMethod.Body.GetILProcessor();
 
-        var compareExchange = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Threading.Interlocked")
+        var compareExchange = containingType.Module.ImportReference(modder.ResolveFirstFrameworkType("System.Threading.Interlocked")
             .Methods.Single(m => m.Name == "CompareExchange" && m.HasGenericParameters && m.IsStatic));
 
         GenericInstanceMethod methodInterlockedCompareExchange = new(compareExchange);
@@ -95,7 +92,8 @@ public static class EventEmitter
         ilAdd.Emit(OpCodes.Ldloc_1);           // Load local v1
         ilAdd.Emit(OpCodes.Ldarg_0);           // Load the parameter value
 
-        var combine = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Delegate")
+        var delegateType = modder.ResolveFirstFrameworkType<System.Delegate>();
+        var combine = containingType.Module.ImportReference(delegateType
             .Methods.Single(m => m.Name == "Combine" && m.IsStatic && m.Parameters.Count == 2));
         ilAdd.Emit(OpCodes.Call, combine);
         ilAdd.Emit(OpCodes.Castclass, eventField.FieldType);
@@ -135,7 +133,7 @@ public static class EventEmitter
         ilRemove.Emit(OpCodes.Stloc_1);           // Store into local v1
         ilRemove.Emit(OpCodes.Ldloc_1);           // Load local v1
         ilRemove.Emit(OpCodes.Ldarg_0);           // Load the parameter value
-        var remove = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Delegate")
+        var remove = containingType.Module.ImportReference(delegateType
             .Methods.Single(m => m.Name == "Remove" && m.IsStatic));
         ilRemove.Emit(OpCodes.Call, remove);
         ilRemove.Emit(OpCodes.Castclass, eventField.FieldType);
@@ -152,7 +150,7 @@ public static class EventEmitter
         containingType.Methods.Add(removeMethod);
 
         // add compiler generated attribute
-        var ctor = containingType.Module.ImportReference(CoreLibRelinker.ResolveFirstFrameworkType(modder, "System.Runtime.CompilerServices.CompilerGeneratedAttribute")
+        var ctor = containingType.Module.ImportReference(modder.ResolveFirstFrameworkType<System.Runtime.CompilerServices.CompilerGeneratedAttribute>()
             .Methods.Single(m => m.Name == ".ctor" && m.IsConstructor && m.Parameters.Count == 0));
         addMethod.CustomAttributes.Add(new(ctor));
         removeMethod.CustomAttributes.Add(new(ctor));

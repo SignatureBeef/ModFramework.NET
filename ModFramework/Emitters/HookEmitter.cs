@@ -16,9 +16,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+using ModFramework.Relinker;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod;
+using MonoMod.Utils;
 using System;
 using System.Linq;
 
@@ -171,6 +173,68 @@ public static class HookEmitter
         };
     }
 
+    public static TypeDefinition CreateHookDelegate(MonoModder modder)
+    {
+        var test = modder.Module.ImportReference(typeof(HookDelegate<,>));
+        var hookDelegate = modder.Module.Types.SingleOrDefault(x => x.Name == "HookDelegate");
+        if (hookDelegate is not null)
+            return hookDelegate;
+
+        var multicast = modder.ResolveTypeReference<MulticastDelegate>();
+
+        hookDelegate = new(
+            "HookEvents",
+            "HookDelegate",
+            TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Sealed
+        );
+        hookDelegate.BaseType = multicast;
+        hookDelegate.GenericParameters.Add(new GenericParameter("TSender", hookDelegate));
+        hookDelegate.GenericParameters.Add(new GenericParameter("TArgs", hookDelegate));
+
+        modder.Module.Types.Add(hookDelegate);
+
+        // create ctor, Invoke, BeginInvoke, EndInvoke (no body)
+
+        var ctor = new MethodDefinition(".ctor", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, hookDelegate.Module.TypeSystem.Void)
+        {
+            IsRuntime = true
+        };
+        ctor.Parameters.Add(new ParameterDefinition("object", ParameterAttributes.None, hookDelegate.Module.TypeSystem.Object));
+        ctor.Parameters.Add(new ParameterDefinition("method", ParameterAttributes.None, hookDelegate.Module.TypeSystem.IntPtr));
+        hookDelegate.Methods.Add(ctor);
+
+        var invoke = new MethodDefinition("Invoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, hookDelegate.Module.TypeSystem.Void)
+        {
+            IsRuntime = true
+        };
+        invoke.Parameters.Add(new ParameterDefinition("sender", ParameterAttributes.None, hookDelegate.GenericParameters[0]));
+        invoke.Parameters.Add(new ParameterDefinition("args", ParameterAttributes.None, hookDelegate.GenericParameters[1]));
+        hookDelegate.Methods.Add(invoke);
+
+        var iAsyncResult = modder.ResolveTypeReference<IAsyncResult>();
+        var iAsyncCallback = modder.ResolveTypeReference<AsyncCallback>();
+
+        var beginInvoke = new MethodDefinition("BeginInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, iAsyncResult)
+        {
+            IsRuntime = true
+        };
+        beginInvoke.Parameters.Add(new ParameterDefinition("sender", ParameterAttributes.None, hookDelegate.GenericParameters[0]));
+        beginInvoke.Parameters.Add(new ParameterDefinition("args", ParameterAttributes.None, hookDelegate.GenericParameters[1]));
+        beginInvoke.Parameters.Add(new ParameterDefinition("callback", ParameterAttributes.None, iAsyncCallback));
+        beginInvoke.Parameters.Add(new ParameterDefinition("object", ParameterAttributes.None, hookDelegate.Module.TypeSystem.Object));
+        hookDelegate.Methods.Add(beginInvoke);
+
+        var endInvoke = new MethodDefinition("EndInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, hookDelegate.Module.TypeSystem.Void)
+        {
+            IsRuntime = true
+        };
+        endInvoke.Parameters.Add(new ParameterDefinition("result", ParameterAttributes.None, iAsyncResult));
+        hookDelegate.Methods.Add(endInvoke);
+
+
+        return hookDelegate;
+    }
+
     static MethodDefinition CreateInvokeMethod(TypeDefinition hookType, FieldDefinition eventField, TypeDefinition hookEventArgsType, MonoModder modder, string? name = null)
     {
         var methodName = name ?? $"Invoke{eventField.Name.TrimStart('_')}";
@@ -206,15 +270,15 @@ public static class HookEmitter
         }
 
         // Create a GenericInstanceType for EventHandler<HookEventArgsType>
-        var eventHandlerGenericType = EventEmitter.GetEventHandlerReference(modder);
-
-        GenericInstanceType genericEventHandlerType = new(eventHandlerGenericType)
+        //var eventHandlerGenericType = EventEmitter.GetEventHandlerReference(modder);
+        var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
+        GenericInstanceType genericEventHandlerType = new(eventHandlerType)
         {
             GenericArguments = { hookEventArgsType }
         };
 
         // Import the "Invoke" method of EventHandler<HookEventArgsType>
-        var eventHandlerInvokeMethod = eventHandlerGenericType.Resolve().Methods.First(m => m.Name == "Invoke");
+        var eventHandlerInvokeMethod = eventHandlerType.Resolve().Methods.First(m => m.Name == "Invoke");
         MethodReference invokeMethodReference = new(
             eventHandlerInvokeMethod.Name,
             hookType.Module.TypeSystem.Void,
@@ -237,7 +301,7 @@ public static class HookEmitter
         invokeMethod.Body.Variables.Add(vrb);
         invokeMethod.Body.InitLocals = true;
         il.Emit(OpCodes.Newobj, hookEventArgsType.Methods.Single(x => x.Name == ".ctor")); // Create a new instance of the event args
-        // Set the fields of the event args instance
+                                                                                           // Set the fields of the event args instance
         foreach (var prm in invokeMethod.Parameters.Skip(1 /*sender*/))
         {
             il.Emit(OpCodes.Dup);                           // Load the event args instance
@@ -386,6 +450,8 @@ public static class HookEmitter
         // put one in it's place
         // call an event
         // check whether to continue or not, using a simple bool flag
+
+        CreateHookDelegate(modder);
 
         var uniqueName = GetUniqueName(definition);
         var hookType = GetOrCreateHookType(definition.DeclaringType);
