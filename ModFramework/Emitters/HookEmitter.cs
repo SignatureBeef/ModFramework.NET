@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2024 DeathCradle
+Copyright (C) 2024 SignatureBeef
 
 This file is part of Open Terraria API v3 (OTAPI)
 
@@ -16,11 +16,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-using ModFramework.Relinker;
+using Microsoft.VisualBasic.FileIO;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using MonoMod;
-using MonoMod.Utils;
 using System;
 using System.Linq;
 
@@ -30,9 +29,35 @@ namespace ModFramework;
 public static class HookEmitter
 {
     /// <summary>
+    /// The name to place in front of the preserved hook method
+    /// </summary>
+    /// <remarks>ModFramework Hook</remarks>
+    public const String HookMethodNamePrefix = "mfwh_";
+
+    /// <summary>
+    /// The name of the field created in event args to store the return value
+    /// </summary>
+    const String HookReturnValueName = "HookReturnValue";
+
+    /// <summary>
+    /// The name of the field created in event args to determine whether to continue execution
+    /// </summary>
+    const String ContinueExecutionName = "ContinueExecution";
+
+    /// <summary>
+    /// The name of the field created in event args to store the original method delegate
+    /// </summary>
+    const String OriginalMethodName = "OriginalMethod";
+
+    /// <summary>
+    /// Excluded field names from the event args that are to be ignored when loading upon stack, etc, as they are usually handled manually.
+    /// </summary>
+    static readonly String[] ExcludeNames = [HookReturnValueName, ContinueExecutionName, OriginalMethodName];
+
+    /// <summary>
     /// Creates a new type in the assembly to hoist the hook events.
     /// </summary>
-    /// <param name="type"></param>
+    /// <param name="type">The type that is being hooked, and thuus to be created as a hooked type</param>
     /// <returns></returns>
     static TypeDefinition GetOrCreateHookType(TypeDefinition type)
     {
@@ -51,6 +76,11 @@ public static class HookEmitter
         return hookType;
     }
 
+    /// <summary>
+    /// Generates a unique name for a method, with consideration to overloads.
+    /// </summary>
+    /// <param name="method">The method to generate a name for</param>
+    /// <returns>A unique name string</returns>
     static string GetUniqueName(MethodDefinition method)
     {
         // generate a name, with consideration to overloads
@@ -69,10 +99,15 @@ public static class HookEmitter
         return name;
     }
 
-    const String HookReturnValueName = "HookReturnValue";
-    const String ContinueExecutionName = "ContinueExecution";
-
-    static TypeDefinition CreateHookEventArgs(TypeDefinition hookType, MethodDefinition hookDefinition, string? name = null, MonoModder? modder = null)
+    /// <summary>
+    /// Creates an event in the hook type for the method.
+    /// </summary>
+    /// <param name="hookType">The hook type where the event is created</param>
+    /// <param name="hookDefinition">The definition that is used to generate fields/properties in the event args from the methods arguments</param>
+    /// <param name="modder">The monomodder instance</param>
+    /// <param name="name">Optional desired name</param>
+    /// <returns>The deginition of the event args</returns>
+    static TypeDefinition CreateHookEventArgs(TypeDefinition hookType, MethodDefinition hookDefinition, MonoModder modder, string? name = null)
     {
         var hookEventName = name ?? (hookDefinition.Name + "EventArgs");
         TypeDefinition hookEvent = new(
@@ -117,21 +152,19 @@ public static class HookEmitter
         il.Emit(OpCodes.Ldc_I4_1);
         il.Emit(OpCodes.Stfld, resultField);
 
-        //// Set the defaults for HookReturnValue, e.g. var = default(var)
-        //if (hasReturnValue)
-        //{
-        //    il.Emit(OpCodes.Ldarg_0);
-        //    il.Append(CreateDefaultValueInstruction(hookDefinition.ReturnType));
-        //    il.Emit(OpCodes.Stfld, hookEvent.Fields.Single(x => x.Name == HookReturnValueName));
-        //}
-
         il.Emit(OpCodes.Ret);
         hookEvent.Methods.Add(ctor);
 
         hookEvent.Fields.Add(resultField);
+
         return hookEvent;
     }
 
+    /// <summary>
+    /// Creates an instruction to load a default value onto the stack.
+    /// </summary>
+    /// <param name="type">The type of default value</param>
+    /// <returns>An instruction that can be appended to a method body</returns>
     public static Instruction CreateDefaultValueInstruction(TypeReference type)
     {
         return type.MetadataType switch
@@ -145,6 +178,11 @@ public static class HookEmitter
         };
     }
 
+    /// <summary>
+    /// Creates an instruction to load an indirect value onto the stack.
+    /// </summary>
+    /// <param name="type">The type that the instruction is intended for</param>
+    /// <returns>An instruction that can be appended to a method body</returns>
     public static Instruction CreateLoadIndirectInstruction(TypeReference type)
     {
         return type.MetadataType switch
@@ -159,6 +197,11 @@ public static class HookEmitter
         };
     }
 
+    /// <summary>
+    /// Creates an instruction to store an indirect value onto the stack.
+    /// </summary>
+    /// <param name="type">The type that the instruction is intended for</param>
+    /// <returns>An instruction that can be appended to a method body</returns>
     public static Instruction CreateStoreIndirectFunction(TypeReference type)
     {
         return type.MetadataType switch
@@ -173,6 +216,76 @@ public static class HookEmitter
         };
     }
 
+    /// <summary>
+    /// For use within the event args as a field that provides access to the original method.
+    /// e.g. public delegate ReturnType OriginalMethodDelegate([optional instance], ...params)
+    /// </summary>
+    /// <param name="modder">The monomodder instance</param>
+    /// <returns>The definition of the delegate</returns>
+    public static TypeDefinition GetOrCreateOriginalMethodDelegate(MonoModder modder, MethodDefinition originalDefinition, TypeDefinition eventArgs)
+    {
+        var delegateName = GetUniqueName(originalDefinition) + "Callback";
+        var delegateType = modder.Module.Types.SingleOrDefault(x => x.Name == delegateName);
+        if (delegateType is not null)
+            return delegateType;
+
+        var multicast = modder.ResolveTypeReference<MulticastDelegate>();
+
+        delegateType = new(
+            "",
+            $"{OriginalMethodName}Delegate",
+            TypeAttributes.Sealed | TypeAttributes.NestedPublic
+        );
+        delegateType.BaseType = multicast;
+        eventArgs.NestedTypes.Add(delegateType);
+
+        // create ctor, Invoke, BeginInvoke, EndInvoke (no body)
+        MethodDefinition ctor = new(".ctor", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, delegateType.Module.TypeSystem.Void)
+        {
+            IsRuntime = true
+        };
+        ctor.Parameters.Add(new("object", ParameterAttributes.None, delegateType.Module.TypeSystem.Object));
+        ctor.Parameters.Add(new("method", ParameterAttributes.None, delegateType.Module.TypeSystem.IntPtr));
+        delegateType.Methods.Add(ctor);
+
+        MethodDefinition invoke = new("Invoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, delegateType.Module.TypeSystem.Void)
+        {
+            IsRuntime = true
+        };
+
+        foreach (var param in originalDefinition.Parameters)
+            invoke.Parameters.Add(new(param.Name, ParameterAttributes.None, param.ParameterType));
+
+        delegateType.Methods.Add(invoke);
+
+        var iAsyncResult = modder.ResolveTypeReference<IAsyncResult>();
+        var iAsyncCallback = modder.ResolveTypeReference<AsyncCallback>();
+
+        MethodDefinition beginInvoke = new("BeginInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, iAsyncResult)
+        {
+            IsRuntime = true
+        };
+        foreach (var param in originalDefinition.Parameters)
+            beginInvoke.Parameters.Add(new(param.Name, ParameterAttributes.None, param.ParameterType));
+        beginInvoke.Parameters.Add(new("callback", ParameterAttributes.None, iAsyncCallback));
+        beginInvoke.Parameters.Add(new("object", ParameterAttributes.None, delegateType.Module.TypeSystem.Object));
+        delegateType.Methods.Add(beginInvoke);
+
+        MethodDefinition endInvoke = new("EndInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, delegateType.Module.TypeSystem.Void)
+        {
+            IsRuntime = true
+        };
+        endInvoke.Parameters.Add(new("result", ParameterAttributes.None, iAsyncResult));
+        delegateType.Methods.Add(endInvoke);
+
+        return delegateType;
+    }
+
+    /// <summary>
+    /// Creates a hook delegate to be used for events
+    /// </summary>
+    /// <param name="modder">The monomodder instance</param>
+    /// <returns>The deginition of the delegate</returns>
     public static TypeDefinition GetOrCreateHookDelegate(MonoModder modder)
     {
         var hookDelegate = modder.Module.Types.SingleOrDefault(x => x.Name == "HookDelegate");
@@ -187,59 +300,70 @@ public static class HookEmitter
             TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Sealed
         );
         hookDelegate.BaseType = multicast;
-        hookDelegate.GenericParameters.Add(new GenericParameter("TSender", hookDelegate));
-        hookDelegate.GenericParameters.Add(new GenericParameter("TArgs", hookDelegate));
+        hookDelegate.GenericParameters.Add(new("TSender", hookDelegate));
+        hookDelegate.GenericParameters.Add(new("TArgs", hookDelegate));
 
         modder.Module.Types.Add(hookDelegate);
 
         // create ctor, Invoke, BeginInvoke, EndInvoke (no body)
-
-        var ctor = new MethodDefinition(".ctor", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, hookDelegate.Module.TypeSystem.Void)
+        MethodDefinition ctor = new(".ctor", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, hookDelegate.Module.TypeSystem.Void)
         {
             IsRuntime = true
         };
-        ctor.Parameters.Add(new ParameterDefinition("object", ParameterAttributes.None, hookDelegate.Module.TypeSystem.Object));
-        ctor.Parameters.Add(new ParameterDefinition("method", ParameterAttributes.None, hookDelegate.Module.TypeSystem.IntPtr));
+        ctor.Parameters.Add(new("object", ParameterAttributes.None, hookDelegate.Module.TypeSystem.Object));
+        ctor.Parameters.Add(new("method", ParameterAttributes.None, hookDelegate.Module.TypeSystem.IntPtr));
         hookDelegate.Methods.Add(ctor);
 
-        var invoke = new MethodDefinition("Invoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, hookDelegate.Module.TypeSystem.Void)
+        MethodDefinition invoke = new("Invoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, hookDelegate.Module.TypeSystem.Void)
         {
             IsRuntime = true
         };
-        invoke.Parameters.Add(new ParameterDefinition("sender", ParameterAttributes.None, hookDelegate.GenericParameters[0]));
-        invoke.Parameters.Add(new ParameterDefinition("args", ParameterAttributes.None, hookDelegate.GenericParameters[1]));
+        invoke.Parameters.Add(new("sender", ParameterAttributes.None, hookDelegate.GenericParameters[0]));
+        invoke.Parameters.Add(new("args", ParameterAttributes.None, hookDelegate.GenericParameters[1]));
         hookDelegate.Methods.Add(invoke);
 
         var iAsyncResult = modder.ResolveTypeReference<IAsyncResult>();
         var iAsyncCallback = modder.ResolveTypeReference<AsyncCallback>();
 
-        var beginInvoke = new MethodDefinition("BeginInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, iAsyncResult)
+        MethodDefinition beginInvoke = new("BeginInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, iAsyncResult)
         {
             IsRuntime = true
         };
-        beginInvoke.Parameters.Add(new ParameterDefinition("sender", ParameterAttributes.None, hookDelegate.GenericParameters[0]));
-        beginInvoke.Parameters.Add(new ParameterDefinition("args", ParameterAttributes.None, hookDelegate.GenericParameters[1]));
-        beginInvoke.Parameters.Add(new ParameterDefinition("callback", ParameterAttributes.None, iAsyncCallback));
-        beginInvoke.Parameters.Add(new ParameterDefinition("object", ParameterAttributes.None, hookDelegate.Module.TypeSystem.Object));
+        beginInvoke.Parameters.Add(new("sender", ParameterAttributes.None, hookDelegate.GenericParameters[0]));
+        beginInvoke.Parameters.Add(new("args", ParameterAttributes.None, hookDelegate.GenericParameters[1]));
+        beginInvoke.Parameters.Add(new("callback", ParameterAttributes.None, iAsyncCallback));
+        beginInvoke.Parameters.Add(new("object", ParameterAttributes.None, hookDelegate.Module.TypeSystem.Object));
         hookDelegate.Methods.Add(beginInvoke);
 
-        var endInvoke = new MethodDefinition("EndInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, hookDelegate.Module.TypeSystem.Void)
+        MethodDefinition endInvoke = new("EndInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, hookDelegate.Module.TypeSystem.Void)
         {
             IsRuntime = true
         };
-        endInvoke.Parameters.Add(new ParameterDefinition("result", ParameterAttributes.None, iAsyncResult));
+        endInvoke.Parameters.Add(new("result", ParameterAttributes.None, iAsyncResult));
         hookDelegate.Methods.Add(endInvoke);
 
 
         return hookDelegate;
     }
 
+    /// <summary>
+    /// Creates an event in the hook type for the method.
+    /// </summary>
+    /// <param name="hookType">The type to receive the method being created</param>
+    /// <param name="eventField">The event to fire</param>
+    /// <param name="hookEventArgsType">The event args</param>
+    /// <param name="modder">The monomodder instance</param>
+    /// <param name="instanceType">Optional/Nullable instance type</param>
+    /// <param name="originalMethodDelegate">The delegate for the original method</param>
+    /// <param name="name">Optional name to call the method</param>
+    /// <returns>The definition of the invoke method that was created</returns>
     static MethodDefinition CreateInvokeMethod(
         TypeDefinition hookType,
         FieldDefinition eventField,
         TypeDefinition hookEventArgsType,
         MonoModder modder,
         TypeReference? instanceType,
+        TypeDefinition originalMethodDelegate,
         string? name = null)
     {
         var methodName = name ?? $"Invoke{eventField.Name.TrimStart('_')}";
@@ -253,21 +377,18 @@ public static class HookEmitter
 
         // Add parameters: object sender, hookEventArgsType args
         var senderFieldName = "instanceAsSender";
-        while (hookType.Fields.Any(x => x.Name == senderFieldName))
+        while (hookEventArgsType.Fields.Any(x => x.Name == senderFieldName))
             senderFieldName = "_" + senderFieldName;
         ParameterDefinition senderParam = new(senderFieldName, ParameterAttributes.None, instanceType ?? hookType.Module.TypeSystem.Object);
         invokeMethod.Parameters.Add(senderParam);
 
-        //var returnValueField = hookEventArgsType.Fields.SingleOrDefault(x => x.Name == HookReturnValueName);
-        //if (returnValueField is not null)
-        //{
-        //    // add a param type "byref" for the return value
-        //    ParameterDefinition returnValueParam = new(HookReturnValueName, ParameterAttributes.Out, returnValueField.FieldType);
-        //    invokeMethod.Parameters.Add(returnValueParam);
-        //}
+        // add the original method delegate
+        var loweredOriginalMethodName = OriginalMethodName[..1].ToLower() + OriginalMethodName[1..];
+        ParameterDefinition originalMethodParameter = new(loweredOriginalMethodName, ParameterAttributes.None, originalMethodDelegate);
+        invokeMethod.Parameters.Add(originalMethodParameter);
 
         // instead of an event args, intake the parameters so each call doesnt need to new up itself.
-        foreach (var field in hookEventArgsType.Fields.Where(x => x.Name != ContinueExecutionName && x.Name != HookReturnValueName))
+        foreach (var field in hookEventArgsType.Fields.Where(x => !ExcludeNames.Contains(x.Name)))
         {
             var fieldType = field.FieldType is ByReferenceType byRef ? byRef.ElementType : field.FieldType;
             ParameterDefinition prm = new(field.Name, ParameterAttributes.None, fieldType);
@@ -275,8 +396,6 @@ public static class HookEmitter
         }
 
         // Create a GenericInstanceType for EventHandler<HookEventArgsType>
-        //var eventHandlerGenericType = EventEmitter.GetEventHandlerReference(modder);
-        //var eventHandlerType = modder.ResolveTypeReference(typeof(EventHandler<>));
         var eventHandlerType = instanceType is not null ? GetOrCreateHookDelegate(modder) : modder.ResolveTypeReference(typeof(EventHandler<>));
         GenericInstanceType genericEventHandlerType = new(eventHandlerType)
         {
@@ -298,7 +417,6 @@ public static class HookEmitter
         };
 
         // Add parameters to the invokeMethodReference
-        //invokeMethodReference.Parameters.Add(new(instanceType ?? hookType.Module.TypeSystem.Object)); // sender
         invokeMethodReference.Parameters.Add(new(instanceType is not null ?
             eventHandlerInvokeMethod.Parameters[0].ParameterType :
             hookType.Module.TypeSystem.Object)); // sender
@@ -313,8 +431,13 @@ public static class HookEmitter
         invokeMethod.Body.Variables.Add(vrb);
         invokeMethod.Body.InitLocals = true;
         il.Emit(OpCodes.Newobj, hookEventArgsType.Methods.Single(x => x.Name == ".ctor")); // Create a new instance of the event args
-                                                                                           // Set the fields of the event args instance
-        foreach (var prm in invokeMethod.Parameters.Skip(1 /*sender*/))
+
+        il.Emit(OpCodes.Dup);                               // Load the event args instance
+        il.Emit(OpCodes.Ldarg, originalMethodParameter);    // Load the parameter
+        il.Emit(OpCodes.Stfld, hookEventArgsType.Fields.Single(x => x.Name == OriginalMethodName)); // Set the field
+
+        // Set the fields of the event args instance
+        foreach (var prm in invokeMethod.Parameters.Skip(1 /*sender*/ + 1 /*method*/))
         {
             il.Emit(OpCodes.Dup);                           // Load the event args instance
             il.Emit(OpCodes.Ldarg, prm);                    // Load the parameter
@@ -324,7 +447,7 @@ public static class HookEmitter
 
         // Check if the event is not null
         il.Emit(OpCodes.Ldsfld, eventField);                // Load the static event field
-        il.Emit(OpCodes.Brfalse, returnLabel);            // If null, skip invocation
+        il.Emit(OpCodes.Brfalse, returnLabel);              // If null, skip invocation
 
         // Invoke the event delegate
         il.Emit(OpCodes.Ldsfld, eventField);                // Load the static event field
@@ -345,14 +468,15 @@ public static class HookEmitter
     /// <summary>
     /// Creates a replacement method for the original method.
     /// </summary>
-    /// <param name="original"></param>
-    /// <param name="eventInvoke"></param>
-    /// <param name="name"></param>
-    /// <returns></returns>
+    /// <param name="original">The definition of the original method</param>
+    /// <param name="eventInvoke">The events invoke method definition</param>
+    /// <param name="name">Optional/Nullable name for the created method</param>
+    /// <returns>The newly created methods definition</returns>
     static MethodDefinition CreateReplacement(MethodDefinition original, MethodDefinition eventInvoke, string? name = null)
     {
         var eventArgs = eventInvoke.ReturnType.Resolve();
         var hookReturnValueField = eventArgs.Fields.SingleOrDefault(x => x.Name == HookReturnValueName);
+        var originalMethodField = eventArgs.Fields.Single(x => x.Name == OriginalMethodName);
 
         MethodDefinition methodDefinition = new(
             name ?? original.Name,
@@ -379,7 +503,13 @@ public static class HookEmitter
                 il.Append(CreateStoreIndirectFunction(type));
         }
 
+        // load the sender onto the stack
         il.Emit(original.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0);
+        // load the original method onto the stack
+        il.Emit(original.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldftn, original);
+        il.Emit(OpCodes.Newobj, originalMethodField.FieldType.Resolve().Methods.Single(x => x.Name == ".ctor"));
+
         for (int i = 0; i < methodDefinition.Parameters.Count; i++)
         {
             var isByRef = methodDefinition.Parameters[i].ParameterType.IsByReference;
@@ -414,7 +544,7 @@ public static class HookEmitter
         if (!original.IsStatic)
             il.Emit(OpCodes.Ldarg_0);
         // for each event arg field, load it onto the stack to the original method
-        foreach (var field in eventArgs.Fields.Where(x => x.Name != ContinueExecutionName && x.Name != HookReturnValueName))
+        foreach (var field in eventArgs.Fields.Where(x => !ExcludeNames.Contains(x.Name)))
         {
             var parameter = methodDefinition.Parameters.Single(x => x.Name == field.Name);
             // if byref, pass through original args which are updated by the event
@@ -444,16 +574,10 @@ public static class HookEmitter
     }
 
     /// <summary>
-    /// The name to place in front of the preserved hook method
-    /// </summary>
-    /// <remarks>ModFramework Hook</remarks>
-    public const String HookMethodNamePrefix = "mfwh_";
-
-    /// <summary>
     /// Creates a hook for a single method.
     /// </summary>
-    /// <param name="definition"></param>
-    /// <param name="modder"></param>
+    /// <param name="definition">The definition of the method to be hooked</param>
+    /// <param name="modder">The monomodder instance</param>
     public static void CreateHook(this MethodDefinition definition, ModFwModder modder)
     {
         // create hook type
@@ -463,17 +587,19 @@ public static class HookEmitter
         // call an event
         // check whether to continue or not, using a simple bool flag
 
-        GetOrCreateHookDelegate(modder);
-
         var uniqueName = GetUniqueName(definition);
         var hookType = GetOrCreateHookType(definition.DeclaringType);
 
-        var hookEventArgs = CreateHookEventArgs(hookType, definition, name: $"{uniqueName}EventArgs", modder: modder);
+        var hookEventArgs = CreateHookEventArgs(hookType, definition, modder, name: $"{uniqueName}EventArgs");
+
+        // create a method to call the original method
+        var originalMethodDelegate = GetOrCreateOriginalMethodDelegate(modder, definition, hookEventArgs);
+        hookEventArgs.Fields.Add(new FieldDefinition(OriginalMethodName, FieldAttributes.Public, originalMethodDelegate));
+
         var (hookField, _) = definition.CreateEvent(hookType, hookEventArgs, modder, name: uniqueName);
-        var newMethod = CreateInvokeMethod(hookType, hookField, hookEventArgs, modder, definition.IsStatic ? null : definition.DeclaringType, name: $"Invoke{uniqueName}");
+        var newMethod = CreateInvokeMethod(hookType, hookField, hookEventArgs, modder, definition.IsStatic ? null : definition.DeclaringType, originalMethodDelegate, name: $"Invoke{uniqueName}");
 
         var replacement = CreateReplacement(definition, newMethod, name: $"{HookMethodNamePrefix}{definition.Name}");
-
         definition.DeclaringType.Methods.Add(replacement);
 
         // remove any overrides etc
@@ -488,9 +614,9 @@ public static class HookEmitter
         {
             if (instr.Operand is MethodReference mr && mr.Name == definition.Name)
                 instr.Operand = replacement;
-            //mr.Name = replacement.Name;
         }
 
+        // then the bodies
         var temp = definition.Body;
         definition.Body = replacement.Body;
         replacement.Body = temp;

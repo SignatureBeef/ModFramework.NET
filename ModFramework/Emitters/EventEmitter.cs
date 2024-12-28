@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2024 DeathCradle
+Copyright (C) 2024 SignatureBeef
 
 This file is part of Open Terraria API v3 (OTAPI)
 
@@ -73,7 +73,8 @@ public static class EventEmitter
         addMethod.Parameters.Add(parameter);
         var ilAdd = addMethod.Body.GetILProcessor();
 
-        var compareExchange = containingType.Module.ImportReference(modder.ResolveFirstFrameworkType("System.Threading.Interlocked")
+        var compareExchange = containingType.Module.ImportReference(modder.ResolveTypeReference(typeof(System.Threading.Interlocked))
+            .Resolve()
             .Methods.Single(m => m.Name == "CompareExchange" && m.HasGenericParameters && m.IsStatic));
 
         GenericInstanceMethod methodInterlockedCompareExchange = new(compareExchange);
@@ -96,7 +97,7 @@ public static class EventEmitter
         ilAdd.Emit(OpCodes.Ldloc_1);           // Load local v1
         ilAdd.Emit(OpCodes.Ldarg_0);           // Load the parameter value
 
-        var delegateType = modder.ResolveFirstFrameworkType<System.Delegate>();
+        var delegateType = modder.ResolveTypeReference(typeof(System.Delegate)).Resolve();
         var combine = containingType.Module.ImportReference(delegateType
             .Methods.Single(m => m.Name == "Combine" && m.IsStatic && m.Parameters.Count == 2));
         ilAdd.Emit(OpCodes.Call, combine);
@@ -154,7 +155,8 @@ public static class EventEmitter
         containingType.Methods.Add(removeMethod);
 
         // add compiler generated attribute
-        var ctor = containingType.Module.ImportReference(modder.ResolveFirstFrameworkType<System.Runtime.CompilerServices.CompilerGeneratedAttribute>()
+        var ctor = containingType.Module.ImportReference(modder.ResolveTypeReference(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))
+            .Resolve()
             .Methods.Single(m => m.Name == ".ctor" && m.IsConstructor && m.Parameters.Count == 0));
         addMethod.CustomAttributes.Add(new(ctor));
         removeMethod.CustomAttributes.Add(new(ctor));
