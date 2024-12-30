@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
-		<PackageVersion>1.1.9</PackageVersion>
-		<Version>1.1.9</Version>
+		<PackageVersion>1.1.10</PackageVersion>
+		<Version>1.1.10</Version>
 		<PackageId>ModFramework</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
@@ -20,9 +20,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MonoMod" Version="22.7.31.1" />
-		<PackageReference Include="MonoMod.RuntimeDetour.HookGen" Version="22.7.31.1" />
 		<PackageReference Include="NuGet.Protocol" Version="6.12.1" />
-		<PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">
 		<RemoveDir Directories="$(OUTDIR)" />

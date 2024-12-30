@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
-		<PackageVersion>1.1.9</PackageVersion>
-		<Version>1.1.9</Version>
+		<PackageVersion>1.1.10</PackageVersion>
+		<Version>1.1.10</Version>
 		<Authors>DeathCradle</Authors>
 		<Copyright>Copyright 2016-2024</Copyright>
 		<PackageId>ModFramework.Modules.ClearScript</PackageId>
@@ -25,7 +25,6 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.ClearScript" Version="7.4.5" />
-		<PackageReference Include="MonoMod" Version="22.7.31.1" />
 		<PackageReference Include="Microsoft.ClearScript.V8.Native.osx-x64" Version="7.4.5" />
 		<PackageReference Include="Microsoft.ClearScript.linux-x64" Version="7.4.5" />
 	</ItemGroup>

@@ -32,10 +32,10 @@ namespace ModFramework;
 public static class CecilHelpersExtensions
 {
     public static ILCursor GetILCursor(this MonoMod.MonoModder modder, Expression<Action> reference, bool followRedirect = true)
-        => new ILCursor(new ILContext(modder.Module.GetDefinition<MethodDefinition>(reference, followRedirect)) { ReferenceBag = RuntimeILReferenceBag.Instance });
+        => new ILCursor(new ILContext(modder.Module.GetDefinition<MethodDefinition>(reference, followRedirect)));
 
     public static ILCursor GetILCursor(this MonoMod.MonoModder modder, MethodDefinition method)
-        => new ILCursor(new ILContext(method) { ReferenceBag = RuntimeILReferenceBag.Instance });
+        => new ILCursor(new ILContext(method));
 
     public static MethodDefinition GetMethodDefinition(this MonoMod.MonoModder modder, Expression<Action> reference, bool followRedirect = true)
         => modder.Module.GetDefinition<MethodDefinition>(reference, followRedirect: followRedirect);
@@ -46,10 +46,10 @@ public static class CecilHelpersExtensions
         => modder.Module.GetDefinition<TType>();
 
     public static ILCursor GetILCursor(this ModuleDefinition module, Expression<Action> reference)
-        => new ILCursor(new ILContext(module.GetDefinition<MethodDefinition>(reference)) { ReferenceBag = RuntimeILReferenceBag.Instance });
+        => new ILCursor(new ILContext(module.GetDefinition<MethodDefinition>(reference)));
 
     public static ILCursor GetILCursor(this MethodDefinition method)
-        => new ILCursor(new ILContext(method) { ReferenceBag = RuntimeILReferenceBag.Instance });
+        => new ILCursor(new ILContext(method));
 
     public static MethodReference GetReference<TReturn>(this ModuleDefinition module, Expression<Func<TReturn>> reference)
         => (MethodReference)module.GetMemberReference(reference);

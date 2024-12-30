@@ -1,6 +1,4 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ModFramework.Modules.CSharp;
-using ModFramework.Plugins;
 using System;
 using System.IO;
 using System.Linq;
