@@ -211,9 +211,10 @@ public class ModFwModder : MonoMod.MonoModder, IRelinkProvider
 
         RunTasks(t => t.Relink(method));
 
-        //// pending: https://github.com/MonoMod/MonoMod/pull/92
-        //for (int i = 0; i < method.MethodReturnType.CustomAttributes.Count; i++)
-        //    PatchRefsInCustomAttribute(method.MethodReturnType.CustomAttributes[i] = method.MethodReturnType.CustomAttributes[i].Relink(Relinker, method));
+        // pending: https://github.com/MonoMod/MonoMod/pull/92
+        // still required, PR was rejected due to the branch not being cared for anymore.
+        for (int i = 0; i < method.MethodReturnType.CustomAttributes.Count; i++)
+            PatchRefsInCustomAttribute(method.MethodReturnType.CustomAttributes[i] = method.MethodReturnType.CustomAttributes[i].Relink(Relinker, method));
     }
 
     public override void AutoPatch()
