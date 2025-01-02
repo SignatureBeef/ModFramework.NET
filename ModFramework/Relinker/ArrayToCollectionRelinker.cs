@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (C) 2020 DeathCradle
+Copyright (C) 2020-2024 SignatureBeef
 
 This file is part of Open Terraria API v3 (OTAPI)
 
@@ -203,7 +203,7 @@ namespace ModFramework
         public static ICollection<TItem> CreateCollection(int width, int height, string source)
         {
             var collection = OnCreateCollection?.Invoke(width, height, source) ?? new DefaultCollection<TItem>(width, height);
-            System.Console.WriteLine($"Created new {collection.Width}x{collection.Height} {collection.GetType().Name} for source: {source}");
+            System.Diagnostics.Debug.WriteLine($"Created new {collection.Width}x{collection.Height} {collection.GetType().Name} for source: {source}");
             return collection;
         }
     }
