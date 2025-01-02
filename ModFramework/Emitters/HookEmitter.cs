@@ -248,7 +248,7 @@ public static class HookEmitter
         ctor.Parameters.Add(new("method", ParameterAttributes.None, delegateType.Module.TypeSystem.IntPtr));
         delegateType.Methods.Add(ctor);
 
-        MethodDefinition invoke = new("Invoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, delegateType.Module.TypeSystem.Void)
+        MethodDefinition invoke = new("Invoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, originalDefinition.ReturnType)
         {
             IsRuntime = true
         };
@@ -271,7 +271,7 @@ public static class HookEmitter
         beginInvoke.Parameters.Add(new("object", ParameterAttributes.None, delegateType.Module.TypeSystem.Object));
         delegateType.Methods.Add(beginInvoke);
 
-        MethodDefinition endInvoke = new("EndInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, delegateType.Module.TypeSystem.Void)
+        MethodDefinition endInvoke = new("EndInvoke", MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.NewSlot | MethodAttributes.Virtual, originalDefinition.ReturnType)
         {
             IsRuntime = true
         };
