@@ -2,8 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
-		<PackageVersion>1.1.11</PackageVersion>
-		<Version>1.1.11</Version>
+		<PackageVersion>1.1.12</PackageVersion>
+		<Version>1.1.12</Version>
 		<PackageId>ModFramework.Modules.CSharp</PackageId>
 		<Authors>DeathCradle</Authors>
 		<PackOnBuild>true</PackOnBuild>
