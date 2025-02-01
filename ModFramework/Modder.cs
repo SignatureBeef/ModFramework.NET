@@ -47,6 +47,10 @@ public class ModFwModder : MonoMod.MonoModder, IRelinkProvider
 
     public ModContext ModContext { get; set; }
 
+    // most relink tasks occur during the patching phase, so we need to keep track of the types we've added
+    // as a workaround to monomod using a foreach/enumerable which means we cannot modify types during discovery/on-the-fly.
+    public List<TypeDefinition> NewTypes = [];
+
     public new DefaultAssemblyResolver AssemblyResolver
     {
         get => (DefaultAssemblyResolver)base.AssemblyResolver;
@@ -148,6 +152,9 @@ public class ModFwModder : MonoMod.MonoModder, IRelinkProvider
         ModContext.Apply(ModType.PreMerge, this);
         base.PatchRefs();
         ModContext.Apply(ModType.PostMerge, this);
+
+        Module.Types.AddRange(NewTypes);
+        NewTypes.Clear();
     }
 
     public override void PatchType(TypeDefinition type)

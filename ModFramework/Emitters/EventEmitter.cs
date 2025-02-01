@@ -67,13 +67,13 @@ public static class EventEmitter
         MethodDefinition addMethod = new(
             $"add_{fieldName}",
             MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static | MethodAttributes.SpecialName,
-            containingType.Module.TypeSystem.Void
+            modder.Module.TypeSystem.Void
         );
         ParameterDefinition parameter = new("value", ParameterAttributes.None, eventField.FieldType);
         addMethod.Parameters.Add(parameter);
         var ilAdd = addMethod.Body.GetILProcessor();
 
-        var compareExchange = containingType.Module.ImportReference(modder.ResolveTypeReference(typeof(System.Threading.Interlocked))
+        var compareExchange = modder.Module.ImportReference(modder.ResolveTypeReference(typeof(System.Threading.Interlocked))
             .Resolve()
             .Methods.Single(m => m.Name == "CompareExchange" && m.HasGenericParameters && m.IsStatic));
 
@@ -98,7 +98,7 @@ public static class EventEmitter
         ilAdd.Emit(OpCodes.Ldarg_0);           // Load the parameter value
 
         var delegateType = modder.ResolveTypeReference(typeof(System.Delegate)).Resolve();
-        var combine = containingType.Module.ImportReference(delegateType
+        var combine = modder.Module.ImportReference(delegateType
             .Methods.Single(m => m.Name == "Combine" && m.IsStatic && m.Parameters.Count == 2));
         ilAdd.Emit(OpCodes.Call, combine);
         ilAdd.Emit(OpCodes.Castclass, eventField.FieldType);
@@ -118,7 +118,7 @@ public static class EventEmitter
         MethodDefinition removeMethod = new(
             $"remove_{fieldName}",
             MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static | MethodAttributes.SpecialName,
-            containingType.Module.TypeSystem.Void
+            modder.Module.TypeSystem.Void
         );
         removeMethod.Parameters.Add(parameter);
 
@@ -138,7 +138,7 @@ public static class EventEmitter
         ilRemove.Emit(OpCodes.Stloc_1);           // Store into local v1
         ilRemove.Emit(OpCodes.Ldloc_1);           // Load local v1
         ilRemove.Emit(OpCodes.Ldarg_0);           // Load the parameter value
-        var remove = containingType.Module.ImportReference(delegateType
+        var remove = modder.Module.ImportReference(delegateType
             .Methods.Single(m => m.Name == "Remove" && m.IsStatic));
         ilRemove.Emit(OpCodes.Call, remove);
         ilRemove.Emit(OpCodes.Castclass, eventField.FieldType);
@@ -155,7 +155,7 @@ public static class EventEmitter
         containingType.Methods.Add(removeMethod);
 
         // add compiler generated attribute
-        var ctor = containingType.Module.ImportReference(modder.ResolveTypeReference(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))
+        var ctor = modder.Module.ImportReference(modder.ResolveTypeReference(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))
             .Resolve()
             .Methods.Single(m => m.Name == ".ctor" && m.IsConstructor && m.Parameters.Count == 0));
         addMethod.CustomAttributes.Add(new(ctor));
