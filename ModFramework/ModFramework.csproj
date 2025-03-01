@@ -20,7 +20,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MonoMod" Version="22.7.31.1" />
-		<PackageReference Include="NuGet.Protocol" Version="6.12.1" />
+		<PackageReference Include="NuGet.Protocol" Version="6.13.2" />
 	</ItemGroup>
 	<Target Name="CleanAll" AfterTargets="Clean">
 		<RemoveDir Directories="$(OUTDIR)" />
