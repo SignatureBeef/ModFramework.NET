@@ -51,7 +51,12 @@ public class CSharpLoader
     public static AssemblyLoadContext AssemblyContextDefault { get; set; } = AssemblyLoadContext.Default;
     public AssemblyLoadContext AssemblyContext { get; set; } = AssemblyContextDefault;
 
-    public static List<string> DefaultSearchPaths { get; set; } = new() { "bin" };
+    public static List<string> DefaultSearchPaths { get; set; } = [
+        Environment.CurrentDirectory,
+        "bin",
+        AppContext.BaseDirectory,
+        Path.Combine(AppContext.BaseDirectory, "bin"),
+    ];
     public List<string> SearchPaths { get; set; } = DefaultSearchPaths;
 
     public IFrameworkResolver FrameworkResolver { get; set; } = new DefaultFrameworkResolver();
@@ -128,10 +133,10 @@ public class CSharpLoader
 
                 var filename = Path.GetFileName(ref_file);
 
-                var full_path = ResolveFile(ref_file);
+                var full_path = TryResolveFile(ref_file);
                 var sys_path = Path.Combine(assemblyPath, ref_file);
 
-                if (File.Exists(full_path))
+                if (full_path is not null && File.Exists(full_path))
                     yield return MetadataReference.CreateFromFile(full_path);
 
                 else if (File.Exists(sys_path))
@@ -204,9 +209,8 @@ public class CSharpLoader
         return systemRefs = files.Select(f => MetadataReference.CreateFromFile(Path.GetFullPath(f)));
     }
 
-    public string ResolveFile(string path)
+    public string? TryResolveFile(string path)
     {
-        var dir = Path.GetDirectoryName(path);
         var filename = Path.GetFileName(path);
 
         foreach (var searchPath in SearchPaths)
@@ -218,35 +222,23 @@ public class CSharpLoader
             }
 
             var spmatches = Directory.GetFiles(searchPath, filename, SearchOption.AllDirectories);
-            if (spmatches.Any())
+            if (spmatches.Length != 0)
             {
                 var match = spmatches.First();
-                if (File.Exists(match))
-                {
-                    return new FileInfo(match).FullName;
-                }
+                var fullPath = Path.GetFullPath(match);
+                if (File.Exists(fullPath))
+                    return fullPath;
             }
         }
 
-        if (String.IsNullOrWhiteSpace(dir))
-        {
-            if (!File.Exists(path))
-                path = Path.Combine(Environment.CurrentDirectory, filename);
-            else if (!File.Exists(path))
-                path = Path.Combine(Environment.CurrentDirectory, "bin", filename);
-            else if (!File.Exists(path))
-                path = Path.Combine(AppContext.BaseDirectory, filename);
-        }
-        else path = Path.Combine(dir, filename);
-
-        return new FileInfo(path).FullName;
+        return null;
     }
 
     public MetadataReference? TryCreateRefFromFile(string path)
     {
-        path = ResolveFile(path);
-        if (File.Exists(path))
-            return MetadataReference.CreateFromFile(path);
+        var resolved = TryResolveFile(path);
+        if (resolved is not null && File.Exists(resolved))
+            return MetadataReference.CreateFromFile(resolved);
         return null;
     }
 

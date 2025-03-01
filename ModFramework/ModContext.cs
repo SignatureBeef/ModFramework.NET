@@ -61,7 +61,8 @@ public class ModContext
     public delegate void OnContextCreated(ModContext context);
     public static event OnContextCreated? ContextCreated; // allows consumers to add extras into the pipeline (e.g. OTAPI Client Launcher, whom boots terraria, so it can inject cef)
 
-    public string BaseDirectory { get; set; } = Environment.CurrentDirectory;
+    public static String DefaultBaseDirectory => AppContext.BaseDirectory;
+    public string BaseDirectory { get; set; } = DefaultBaseDirectory;
 
     public ModPluginLoader PluginLoader { get; set; }
 
