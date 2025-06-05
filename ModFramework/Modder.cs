@@ -239,6 +239,15 @@ public class ModFwModder : MonoMod.MonoModder, IRelinkProvider
         this.RelinkModuleMap[fromAssemblyName] = toModule ?? this.Module;
     }
 
+    public override IMetadataTokenProvider MainRelinker(IMetadataTokenProvider mtp, IGenericParameterProvider context)
+    {
+        // TODO: remove this when monomod is updated - this is missing from the utilised version.
+        if(mtp is CallSite)
+            return Module.ImportReference(mtp);
+
+        return base.MainRelinker(mtp, context);
+    }
+
     public override void Write(Stream? output = null, string? outputPath = null)
     {
         ModContext.Apply(ModType.PreWrite, this);

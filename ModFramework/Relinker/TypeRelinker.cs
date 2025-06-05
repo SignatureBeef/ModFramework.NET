@@ -45,6 +45,7 @@ public abstract class TypeRelinker : RelinkTask
     bool CheckType<TRef>(TRef type, Action<TRef>? update = null)
         where TRef : TypeReference
     {
+        if (type is null) return false;
         if (NoChangeCache.Contains(type)) return false;
 
         if (ChangeCache.TryGetValue(type, out TypeReference? tref))
@@ -178,6 +179,16 @@ public abstract class TypeRelinker : RelinkTask
         {
             foreach (var ins in instructions)
                 Relink(ins);
+        }
+        else if (instr.Operand is CallSite callSite)
+        {
+            CheckType(callSite.ReturnType, nt => callSite.ReturnType = nt);
+
+            foreach (var prm in callSite.Parameters)
+            {
+                CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
+                FixAttributes(prm.CustomAttributes);
+            }
         }
         else if (!(
             instr.Operand is null
