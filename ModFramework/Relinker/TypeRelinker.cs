@@ -135,7 +135,17 @@ public abstract class TypeRelinker : RelinkTask
                 CheckType(gim.GenericArguments[x], nt => gim.GenericArguments[x] = nt);
 
                 if (gim.GenericArguments[x].DeclaringType is not null)
-                    CheckType(gim.GenericArguments[x].DeclaringType, nt => gim.GenericArguments[x].DeclaringType = nt);
+                    CheckType(gim.GenericArguments[x].DeclaringType, nt => 
+                    {
+                        if (gim.GenericArguments[x] is GenericParameter gp) 
+                        {
+                            gim.GenericArguments[x] = nt.GenericParameters[gp.Position];
+                        }
+                        else 
+                        {
+                            gim.GenericArguments[x].DeclaringType = nt;
+                        }
+                    });
             }
         }
         else

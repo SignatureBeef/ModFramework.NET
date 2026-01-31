@@ -91,8 +91,8 @@ public static class HookEmitter
             name += "_" + string.Join("_", method.Parameters.Select(y =>
             {
                 var name = y.ParameterType.Name;
-                if (y.ParameterType.IsByReference)
-                    name = $"{y.ParameterType.GetElementType().Name}ByRef";
+                if (y.ParameterType is ByReferenceType byref)
+                    name = $"{byref.ElementType.Name}ByRef";
                 return name;
             }));
         }
@@ -133,7 +133,7 @@ public static class HookEmitter
         // for each parameter in the method, create a field
         foreach (var param in hookDefinition.Parameters)
         {
-            var paramType = param.ParameterType.IsByReference ? param.ParameterType.GetElementType() : param.ParameterType;
+            var paramType = param.ParameterType is ByReferenceType byref ? byref.ElementType : param.ParameterType;
             FieldDefinition paramField = new(param.Name, FieldAttributes.Public, paramType);
             hookEvent.Fields.Add(paramField);
         }
@@ -254,7 +254,7 @@ public static class HookEmitter
         };
 
         foreach (var param in originalDefinition.Parameters)
-            invoke.Parameters.Add(new(param.Name, ParameterAttributes.None, param.ParameterType));
+            invoke.Parameters.Add(param.ClonePreservingInOut());
 
         delegateType.Methods.Add(invoke);
 
@@ -266,7 +266,7 @@ public static class HookEmitter
             IsRuntime = true
         };
         foreach (var param in originalDefinition.Parameters)
-            beginInvoke.Parameters.Add(new(param.Name, ParameterAttributes.None, param.ParameterType));
+            beginInvoke.Parameters.Add(param.ClonePreservingInOut());
         beginInvoke.Parameters.Add(new("callback", ParameterAttributes.None, iAsyncCallback));
         beginInvoke.Parameters.Add(new("object", ParameterAttributes.None, delegateType.Module.TypeSystem.Object));
         delegateType.Methods.Add(beginInvoke);
@@ -495,7 +495,7 @@ public static class HookEmitter
         // if any out parameters, initialise them with default values
         foreach (var param in methodDefinition.Parameters.Where(x => x.IsOut))
         {
-            var type = param.ParameterType.GetElementType();
+            var type = ((ByReferenceType)param.ParameterType).ElementType;
             il.Emit(OpCodes.Ldarg_S, param);
             var defaultValue = CreateDefaultValueInstruction(type);
             il.Append(defaultValue);
@@ -510,14 +510,15 @@ public static class HookEmitter
         il.Emit(OpCodes.Ldftn, original);
         il.Emit(OpCodes.Newobj, originalMethodField.FieldType.Resolve().Methods.Single(x => x.Name == ".ctor"));
 
-        for (int i = 0; i < methodDefinition.Parameters.Count; i++)
+        foreach (var param in methodDefinition.Parameters)
         {
-            var isByRef = methodDefinition.Parameters[i].ParameterType.IsByReference;
-            var opCode = isByRef ? OpCodes.Ldarg_S : OpCodes.Ldarg;
-            il.Emit(opCode, methodDefinition.Parameters[i]);
-            if (isByRef)
-                il.Append(CreateLoadIndirectInstruction(methodDefinition.Parameters[i].ParameterType.GetElementType()));
+            il.Emit(OpCodes.Ldarg_S, param);
+            if (param.ParameterType is ByReferenceType byRefType)
+            {
+                il.Append(CreateLoadIndirectInstruction(byRefType.ElementType));
+            }
         }
+
         il.Emit(OpCodes.Call, eventInvoke);
 
         // store the event args in a local variable
@@ -530,7 +531,7 @@ public static class HookEmitter
             il.Emit(OpCodes.Ldarg_S, param);
             il.Emit(OpCodes.Ldloc, eventArgsVariable);
             il.Emit(OpCodes.Ldfld, field);
-            il.Append(CreateStoreIndirectFunction(field.FieldType.GetElementType()));
+            il.Append(CreateStoreIndirectFunction(field.FieldType));
         }
 
         // use ContinueExecutionName to determine whether to continue or not
