@@ -98,6 +98,18 @@ namespace ModFramework.Relinker
                     property.PropertyType = ICollectionGen;
         }
 
+        public override void Relink(MethodDefinition method, VariableDefinition variable)
+        {
+            if (variable.VariableType is ArrayType arrayType && arrayType.ElementType.FullName == this.Type.FullName)
+                variable.VariableType = ICollectionGen;
+        }
+
+        public override void Relink(MethodDefinition method, ParameterDefinition parameter)
+        {
+            if (parameter.ParameterType is ArrayType arrayType && arrayType.ElementType.FullName == this.Type.FullName)
+                parameter.ParameterType = ICollectionGen;
+        }
+
         public override void Relink(MethodBody body, Instruction instr)
         {
             if (body.Method.ReturnType is ArrayType arrayType && arrayType.ElementType.FullName == this.Type.FullName)
