@@ -101,15 +101,14 @@ public abstract class TypeRelinker : RelinkTask
         }
         else
         {
-            // TODO determine if this is needed anymore. causes recursion issues but i dont see evidence its needed anymore
-            //if (type.HasGenericParameters)
-            //    for (int i = 0; i < type.GenericParameters.Count; i++)
-            //    {
-            //        changed |= CheckType(
-            //            type.GenericParameters[i],
-            //            nr => type.GenericParameters[i] = nr
-            //        );
-            //    }
+            foreach (var gpm in type.GenericParameters)
+            {
+                foreach (var ct in gpm.Constraints) 
+                {
+                    FixAttributes(ct.CustomAttributes);
+                    changed |= CheckType(ct.ConstraintType, ntype => ct.ConstraintType = ntype);
+                }
+            }
 
             changed |= RelinkType(ref type);
         }
@@ -125,34 +124,39 @@ public abstract class TypeRelinker : RelinkTask
         return changed;
     }
 
+    private void CheckMethodRef(MethodReference mref)
+    {
+        if (mref is GenericInstanceMethod gim)
+        {
+            CheckType(gim.ElementMethod.DeclaringType, nt => gim.ElementMethod.DeclaringType = nt);
+
+            for (var x = 0; x < gim.GenericArguments.Count; x++) 
+            {
+                CheckType(gim.GenericArguments[x], nt => gim.GenericArguments[x] = nt);
+
+                if (gim.GenericArguments[x].DeclaringType is not null)
+                    CheckType(gim.GenericArguments[x].DeclaringType, nt => gim.GenericArguments[x].DeclaringType = nt);
+            }
+        }
+        else
+            CheckType(mref.DeclaringType, nt => mref.DeclaringType = nt);
+
+        CheckType(mref.ReturnType, nt => mref.ReturnType = nt);
+
+        foreach (var prm in mref.Parameters)
+        {
+            CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
+            FixAttributes(prm.CustomAttributes);
+        }
+    }
+
     public abstract bool RelinkType<TRef>(ref TRef typeReference) where TRef : TypeReference;
 
     public void Relink(Instruction instr)
     {
-        if (instr.Operand is MethodReference mref)
+        if (instr.Operand is MethodReference mref) 
         {
-            if (mref is GenericInstanceMethod gim)
-            {
-                CheckType(gim.ElementMethod.DeclaringType, nt => gim.ElementMethod.DeclaringType = nt);
-
-                for (var x = 0; x < gim.GenericArguments.Count; x++)
-                {
-                    CheckType(gim.GenericArguments[x], nt => gim.GenericArguments[x] = nt);
-
-                    if (gim.GenericArguments[x].DeclaringType is not null)
-                        CheckType(gim.GenericArguments[x].DeclaringType, nt => gim.GenericArguments[x].DeclaringType = nt);
-                }
-            }
-            else
-                CheckType(mref.DeclaringType, nt => mref.DeclaringType = nt);
-
-            CheckType(mref.ReturnType, nt => mref.ReturnType = nt);
-
-            foreach (var prm in mref.Parameters)
-            {
-                CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
-                FixAttributes(prm.CustomAttributes);
-            }
+            CheckMethodRef(mref);
         }
         else if (instr.Operand is FieldReference fref)
         {
@@ -296,6 +300,11 @@ public abstract class TypeRelinker : RelinkTask
         {
             CheckType(prm.ParameterType, nt => prm.ParameterType = nt);
             FixAttributes(prm.CustomAttributes);
+        }
+
+        foreach (var ovrd in method.Overrides) 
+        {
+            CheckMethodRef(ovrd);
         }
 
         FixAttributes(method.CustomAttributes);
