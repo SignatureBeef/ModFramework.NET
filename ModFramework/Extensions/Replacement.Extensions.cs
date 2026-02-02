@@ -43,4 +43,10 @@ public static class ReplacementExtensions
 
         return prop;
     }
+
+    public static ParameterDefinition ClonePreservingInOut(this ParameterDefinition p) 
+    {
+        var attrs = p.Attributes & (ParameterAttributes.In | ParameterAttributes.Out);
+        return new ParameterDefinition(p.Name, attrs, p.ParameterType);
+    }
 }
