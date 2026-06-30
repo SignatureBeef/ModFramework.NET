@@ -485,7 +485,10 @@ public static class HookEmitter
         );
 
         foreach (var param in original.Parameters)
-            methodDefinition.Parameters.Add(new ParameterDefinition(param.Name, param.Attributes, param.ParameterType));
+            methodDefinition.Parameters.Add(new ParameterDefinition(param.Name, param.Attributes, param.ParameterType)
+            {
+                Constant = param.Constant,
+            });
 
         var il = methodDefinition.Body.GetILProcessor();
 
