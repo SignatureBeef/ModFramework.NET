@@ -485,10 +485,12 @@ public static class HookEmitter
         );
 
         foreach (var param in original.Parameters)
-            methodDefinition.Parameters.Add(new ParameterDefinition(param.Name, param.Attributes, param.ParameterType)
-            {
-                Constant = param.Constant,
-            });
+        {
+            ParameterDefinition cloneParam = new(param.Name, param.Attributes, param.ParameterType);
+            if (param.HasConstant)
+                cloneParam.Constant = param.Constant;
+            methodDefinition.Parameters.Add(cloneParam);
+        }
 
         var il = methodDefinition.Body.GetILProcessor();
 
